@@ -10,3 +10,12 @@ spring:
       audio:
         speech: none
         transcription: none
+
+springdoc:
+  api-docs:
+    enabled: false
+    version: OPENAPI_3_1
+  swagger-ui:
+    enabled: false
+  paths-to-match: /api/v1/**
+  show-actuator: false
