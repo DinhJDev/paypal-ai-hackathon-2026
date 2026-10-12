@@ -1,17 +1,38 @@
 package api;
 
+import com.networknt.schema.InputFormat;
+import com.networknt.schema.SchemaRegistry;
+import com.networknt.schema.SpecificationVersion;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.json.JsonMapper;
 
-@ActiveProfiles("test")
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@ActiveProfiles({"test", "local"})
 @Import(TestcontainersConfiguration.class)
-@SpringBootTest
+@SpringBootTest(properties = "spring.datasource.password=test-only-password")
+@AutoConfigureMockMvc
 class ApiApplicationTests {
 
+	@Autowired MockMvc mvc;
+
 	@Test
-	void contextLoads() {
+	void applicationPublishesAValidEmptyContractWithoutTestFixtures() throws Exception {
+		var spec = JsonMapper.builder().build().readTree(mvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+		assertThat(spec.path("paths").size()).isZero();
+		try (var input = getClass().getResourceAsStream("/openapi/oas-3.1-schema.json")) {
+			var registry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12);
+			assertThat(registry.getSchema(input, InputFormat.JSON).validate(spec)).isEmpty();
+		}
 	}
 
 }

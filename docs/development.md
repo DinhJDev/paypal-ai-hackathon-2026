@@ -49,7 +49,8 @@ From `apps/api`, with JDK 25 and Docker running:
 ./mvnw.cmd -B verify
 ```
 
-This runs the application context test against a disposable PostgreSQL container and packages the API.
+This tests startup, OpenAPI contracts, documentation access, and error responses against disposable
+PostgreSQL containers, then packages the API. AI models stay disabled; no API keys or paid calls are needed.
 
 From `apps/web`:
 
@@ -61,6 +62,34 @@ pnpm build
 
 The web scaffold has no automated test suite yet.
 See [architecture](architecture.md) for the current dependency and database limitations.
+
+## API documentation
+
+With the `local` profile active, open [Swagger UI](http://localhost:8080/swagger-ui.html).
+The generated OpenAPI 3.1 contract is available as [JSON](http://localhost:8080/v3/api-docs)
+and [YAML](http://localhost:8080/v3/api-docs.yaml). Documentation is accessible without signing in locally;
+all other routes still require authentication, and CSRF protection remains enabled. The temporary
+Spring Security development login is not the product's authentication design.
+
+The default configuration disables both the contract and Swagger UI. Keep `local` out of deployed
+environments. For documentation with the disposable database, use the `test,local` profiles and export
+`SUITEFOLK_DB_PASSWORD` as above; Testcontainers supplies the actual connection.
+
+Business endpoints will live under `/api/v1`; the contract is currently empty. Use Java request/response
+records with Bean Validation and `@Valid`, give operations stable names, and document every supported
+status and media type explicitly, including the success response. Required nullable fields need
+`@NotNull`; use `@NotBlank` for required text. Return DTOs rather than persistence entities.
+
+Use `200` for reads/updates, `201` with `Location` for creation, and `204` for responses without a body.
+MVC errors use RFC 9457 `application/problem+json` with `type`, `title`, `status`, `detail`, and the request
+path as `instance`. Invalid bodies/parameters return `400`; validation failures add an `errors` array of `{field, message}`.
+Unexpected failures return a generic `500` detail. Security filter responses (`401`/`403`) retain Spring
+Security's behavior and are not covered by this MVC error handler.
+
+Contract tests validate the generated document against the bundled OpenAPI Initiative schema and check
+real success/error bodies against published schemas. Test controllers are explicitly imported fixtures
+outside the application scan and are excluded from the packaged application. Extend these tests alongside
+each new endpoint; no separate CI job or service is required.
 
 ## Continuous integration
 
