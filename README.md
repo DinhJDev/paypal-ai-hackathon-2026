@@ -2,6 +2,9 @@
 
 Suitefolk is an open-source platform in development for salon suite owners to support tenants and manage their suites.
 
+**Hackathon submission deadline:** November 12, 2026, at 12:00 PM PST (2:00 PM CST).
+See the [official PayPal AI Hackathon schedule](https://paypalaihackathon.devpost.com/details/dates).
+
 ## Planned features
 
 - **Tenant support:** AI-assisted help with tenant questions and issues.
