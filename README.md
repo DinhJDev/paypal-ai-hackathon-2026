@@ -24,5 +24,6 @@ Web/API integration and the business features above are still to be built.
 
 - [Development guide](docs/development.md): setup, local commands, checks, and contributing.
 - [Architecture](docs/architecture.md): repository structure and current implementation boundaries.
+- [Submission checklist](docs/hackathon-submission.md): hackathon deliverables and readiness checks.
 
 Licensed under [Apache 2.0](LICENSE).

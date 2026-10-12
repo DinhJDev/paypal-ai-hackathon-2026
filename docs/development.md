@@ -59,8 +59,25 @@ pnpm lint
 pnpm build
 ```
 
-The web scaffold has no automated test suite yet. CI workflows have not been configured.
+The web scaffold has no automated test suite yet.
 See [architecture](architecture.md) for the current dependency and database limitations.
+
+## Continuous integration
+
+[API CI](../.github/workflows/api.yml) runs Maven verification with Java 25 and Docker/Testcontainers.
+[Web CI](../.github/workflows/web.yml) installs the locked dependencies with Node.js 22 and the package's
+pinned pnpm version, then lints and builds. Pull requests to `main`, pushes to `main`, and manual dispatch
+create workflow events. Runner jobs start only when both the original actor and the triggering actor
+(including reruns) are `DinhJDev`. Approving an outside PR's run does not satisfy this actor guard.
+
+The repository also requires [approval for all external contributors' fork workflows](https://docs.github.com/en/rest/actions/permissions#set-fork-pr-contributor-approval-permissions-for-a-repository).
+This setting prevents outside PRs from bypassing the guard by editing the workflow without approval.
+
+CI uses standard Ubuntu runners, which are [free for public repositories](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+Jobs skip for events recorded while the repository is private. Before making it private, disable Actions
+and cancel pending runs; reruns retain the original event's visibility. There are no paid runners, artifact
+uploads, or dependency caches.
+API runs stop after 15 minutes; web runs stop after 10 minutes. Superseded runs by the same actor are cancelled.
 
 ## Configuration
 
