@@ -1,0 +1,93 @@
+
+# ============================================
+# Suitefolk — Git Ignore
+# ============================================
+
+# --------------------------------------------
+# Java / Maven / Spring Boot
+# --------------------------------------------
+**/target/
+*.class
+*.iml
+**/.flattened-pom.xml
+**/dependency-reduced-pom.xml
+**/pom.xml.versionsBackup
+
+# --------------------------------------------
+# Node.js / pnpm
+# --------------------------------------------
+**/node_modules/
+**/.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+
+# --------------------------------------------
+# Next.js
+# --------------------------------------------
+**/.next/
+**/out/
+**/.vercel/
+**/.turbo/
+**/next-env.d.ts
+*.tsbuildinfo
+
+# --------------------------------------------
+# Testing / Coverage
+# --------------------------------------------
+**/coverage/
+**/test-results/
+**/playwright-report/
+**/blob-report/
+
+# --------------------------------------------
+# Environment Variables / Secrets
+# --------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+.secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# --------------------------------------------
+# Local Database / Docker
+# --------------------------------------------
+postgres-data/
+.local/
+
+compose.override.yaml
+compose.override.yml
+docker-compose.override.yaml
+docker-compose.override.yml
+
+# --------------------------------------------
+# IDE / Editor
+# --------------------------------------------
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+.classpath
+.project
+.settings/
+
+# --------------------------------------------
+# Operating System
+# --------------------------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --------------------------------------------
+# Logs / Temporary Files
+# --------------------------------------------
+*.log
+*.tmp
+*.swp
+*~
