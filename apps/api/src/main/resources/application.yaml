@@ -1,6 +1,13 @@
 spring:
   application:
     name: api
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AUTH0_ISSUER_URI}
+          audiences: ${AUTH0_AUDIENCE}
+          jwk-set-uri: ${AUTH0_JWK_SET_URI}
   ai:
     model:
       chat: none

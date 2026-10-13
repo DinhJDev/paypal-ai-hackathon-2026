@@ -4,6 +4,7 @@ import com.networknt.schema.InputFormat;
 import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SpecificationVersion;
 import fixture.ContractFixture;
+import fixture.JwtFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,7 +21,6 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({TestcontainersConfiguration.class, ContractFixture.class})
 @SpringBootTest(properties = "spring.datasource.password=test-only-password")
 @AutoConfigureMockMvc
-class OpenApiContractTests {
+class OpenApiContractTests extends JwtTestSupport {
 
 	@Autowired MockMvc mvc;
 	private final JsonMapper json = JsonMapper.builder().build();
@@ -87,17 +87,19 @@ class OpenApiContractTests {
 	}
 
 	@Test
-	void keepsApiAuthenticationAndCsrfProtection() throws Exception {
+	void keepsAuthenticationAndAllowsBearerOnlyApiRequests() throws Exception {
 		mvc.perform(post("/api/v1/contract-fixture").with(csrf()).accept("application/json")
 				.contentType("application/json").content(validRequest())).andExpect(status().isUnauthorized());
-		mvc.perform(post("/api/v1/contract-fixture").with(httpBasic("contract-test", "test-only-password"))
-				.contentType("application/json").content(validRequest())).andExpect(status().isForbidden());
+		mvc.perform(post("/api/v1/contract-fixture").header("Authorization", "Bearer " + JwtFixture.token("auth0|contract-test"))
+				.contentType("application/json").content(validRequest())).andExpect(status().isOk());
+		mvc.perform(post("/internal/contract-fixture").header("Authorization", "Bearer " + JwtFixture.token("auth0|contract-test")))
+				.andExpect(status().isForbidden());
 	}
 
 	@Test
 	void successfulResponseMatchesPublishedSchema() throws Exception {
 		MvcResult result = mvc.perform(post("/api/v1/contract-fixture")
-				.with(httpBasic("contract-test", "test-only-password")).with(csrf())
+				.header("Authorization", "Bearer " + JwtFixture.token("auth0|contract-test")).with(csrf())
 				.contentType("application/json").content(validRequest())).andExpect(status().isOk())
 				.andExpect(jsonPath("$.name").value("Example"))
 				.andExpect(jsonPath("$.quantity").value(2)).andReturn();
@@ -107,7 +109,7 @@ class OpenApiContractTests {
 	@Test
 	void validationErrorsAreSafeProblemDetailsMatchingPublishedSchema() throws Exception {
 		MvcResult result = mvc.perform(post("/api/v1/contract-fixture")
-				.with(httpBasic("contract-test", "test-only-password")).with(csrf())
+				.header("Authorization", "Bearer " + JwtFixture.token("auth0|contract-test")).with(csrf())
 				.contentType("application/json").content("{\"name\":\"\",\"quantity\":0}"))
 				.andExpect(status().isBadRequest()).andExpect(content().contentTypeCompatibleWith("application/problem+json"))
 				.andExpect(jsonPath("$.type").value("about:blank"))
@@ -123,7 +125,7 @@ class OpenApiContractTests {
 	@Test
 	void malformedJsonDoesNotExposeParserDetailsOrInput() throws Exception {
 		MvcResult result = mvc.perform(post("/api/v1/contract-fixture")
-				.with(httpBasic("contract-test", "test-only-password")).with(csrf())
+				.header("Authorization", "Bearer " + JwtFixture.token("auth0|contract-test")).with(csrf())
 				.contentType("application/json").content("{\"private-token-marker\":"))
 				.andExpect(status().isBadRequest()).andExpect(content().contentTypeCompatibleWith("application/problem+json"))
 				.andExpect(jsonPath("$.detail").value("Request body is missing or contains invalid JSON."))
@@ -136,7 +138,7 @@ class OpenApiContractTests {
 	void invalidParametersDoNotExposeTheirValues() throws Exception {
 		MvcResult result = mvc.perform(get("/api/v1/contract-fixture/quantity")
 				.param("quantity", "private-token-marker")
-				.with(httpBasic("contract-test", "test-only-password")))
+				.header("Authorization", "Bearer " + JwtFixture.token("auth0|contract-test")))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.detail").value("Request parameter is invalid."))
 				.andExpect(jsonPath("$.instance").value("/api/v1/contract-fixture/quantity"))
@@ -147,7 +149,7 @@ class OpenApiContractTests {
 	@Test
 	void unexpectedFailuresAreSanitizedProblemDetails() throws Exception {
 		MvcResult result = mvc.perform(get("/api/v1/contract-fixture/failure")
-				.with(httpBasic("contract-test", "test-only-password")))
+				.header("Authorization", "Bearer " + JwtFixture.token("auth0|contract-test")))
 				.andExpect(status().isInternalServerError())
 				.andExpect(content().contentTypeCompatibleWith("application/problem+json"))
 				.andExpect(jsonPath("$.detail").value("An unexpected error occurred."))
@@ -158,12 +160,12 @@ class OpenApiContractTests {
 
 	@Test
 	void mvcFailuresUseProblemDetails() throws Exception {
-		mvc.perform(put("/api/v1/contract-fixture").with(httpBasic("contract-test", "test-only-password")).with(csrf()))
+		mvc.perform(put("/api/v1/contract-fixture").header("Authorization", "Bearer " + JwtFixture.token("auth0|contract-test")).with(csrf()))
 				.andExpect(status().isMethodNotAllowed()).andExpect(jsonPath("$.status").value(405));
-		mvc.perform(post("/api/v1/contract-fixture").with(httpBasic("contract-test", "test-only-password")).with(csrf())
+		mvc.perform(post("/api/v1/contract-fixture").header("Authorization", "Bearer " + JwtFixture.token("auth0|contract-test")).with(csrf())
 				.contentType("text/plain").content("Example"))
 				.andExpect(status().isUnsupportedMediaType()).andExpect(jsonPath("$.status").value(415));
-		mvc.perform(get("/api/v1/missing").with(httpBasic("contract-test", "test-only-password")))
+		mvc.perform(get("/api/v1/missing").header("Authorization", "Bearer " + JwtFixture.token("auth0|contract-test")))
 				.andExpect(status().isNotFound()).andExpect(jsonPath("$.status").value(404));
 	}
 

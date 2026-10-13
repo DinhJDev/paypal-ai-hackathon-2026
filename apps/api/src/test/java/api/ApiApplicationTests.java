@@ -3,6 +3,7 @@ package api;
 import com.networknt.schema.InputFormat;
 import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SpecificationVersion;
+import fixture.JwtFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,10 +18,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles({"test", "local"})
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class})
 @SpringBootTest(properties = "spring.datasource.password=test-only-password")
 @AutoConfigureMockMvc
-class ApiApplicationTests {
+class ApiApplicationTests extends JwtTestSupport {
 
 	@Autowired MockMvc mvc;
 

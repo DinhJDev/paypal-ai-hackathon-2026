@@ -2,6 +2,7 @@ package api;
 
 import java.util.List;
 import java.util.UUID;
+import fixture.JwtFixture;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,10 +21,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ActiveProfiles("test")
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class})
 @SpringBootTest
 @AutoConfigureMockMvc
-class OwnerIdentityTests {
+class OwnerIdentityTests extends JwtTestSupport {
 
 	private static final String ISSUER = "https://issuer.example.test/";
 	@Autowired MockMvc mvc;

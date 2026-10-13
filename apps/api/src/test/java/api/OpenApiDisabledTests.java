@@ -1,5 +1,6 @@
 package api;
 
+import fixture.JwtFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,10 +14,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles("test")
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class})
 @SpringBootTest
 @AutoConfigureMockMvc
-class OpenApiDisabledTests {
+class OpenApiDisabledTests extends JwtTestSupport {
 
 	@Autowired MockMvc mvc;
 
