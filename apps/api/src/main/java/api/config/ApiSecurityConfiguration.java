@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -34,7 +35,22 @@ public class ApiSecurityConfiguration {
 	}
 
 	@Bean
-	SecurityFilterChain apiSecurity(HttpSecurity http, Environment environment,
+	@Order(1)
+	SecurityFilterChain apiSecurity(HttpSecurity http,
+			ApiAuthenticationEntryPoint entryPoint) throws Exception {
+		return http.securityMatcher("/api/**")
+			.authorizeHttpRequests(requests -> requests.anyRequest().authenticated())
+			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+			// API credentials are bearer headers; the fallback chain retains CSRF protection.
+			.csrf(csrf -> csrf.disable())
+			.exceptionHandling(errors -> errors.authenticationEntryPoint(entryPoint))
+			.oauth2ResourceServer(resource -> resource.jwt(jwt -> { }).authenticationEntryPoint(entryPoint))
+			.build();
+	}
+
+	@Bean
+	@Order(2)
+	SecurityFilterChain nonApiSecurity(HttpSecurity http, Environment environment,
 			ApiAuthenticationEntryPoint entryPoint) throws Exception {
 		return http.authorizeHttpRequests(requests -> {
 				requests.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll();
@@ -45,10 +61,7 @@ public class ApiSecurityConfiguration {
 				requests.anyRequest().authenticated();
 			})
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-			// API credentials are bearer headers; browser-facing routes retain CSRF protection.
-			.csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
 			.exceptionHandling(errors -> errors.authenticationEntryPoint(entryPoint))
-			.oauth2ResourceServer(resource -> resource.jwt(jwt -> { }).authenticationEntryPoint(entryPoint))
 			.build();
 	}
 }
