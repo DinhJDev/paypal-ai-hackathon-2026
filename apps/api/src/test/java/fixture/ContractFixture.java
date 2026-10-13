@@ -10,12 +10,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.ProblemDetail;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,12 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 @TestConfiguration(proxyBeanMethods = false)
 @Import(ContractFixture.Controller.class)
 public class ContractFixture {
-
-	@Bean
-	UserDetailsService fixtureUsers() {
-		return new InMemoryUserDetailsManager(User.withUsername("contract-test")
-				.password("{noop}test-only-password").roles("TEST").build());
-	}
 
 	public record Request(@NotBlank String name, @NotNull @Positive Integer quantity) { }
 	public record Response(String name, int quantity) { }

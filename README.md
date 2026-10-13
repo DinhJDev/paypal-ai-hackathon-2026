@@ -17,8 +17,8 @@ See the [official PayPal AI Hackathon schedule](https://paypalaihackathon.devpos
 The intended workflow connects a Next.js web interface to a Spring Boot API backed by PostgreSQL.
 The API will handle tenant workflows, AI assistance, and PayPal integration.
 
-The project is at the foundation stage: app scaffolds and local development setup are in place.
-Web/API integration and the business features above are still to be built.
+The authentication foundation connects hosted sign-in to API-confirmed owner access.
+The business features above are still to be built.
 
 ## Developer docs
 

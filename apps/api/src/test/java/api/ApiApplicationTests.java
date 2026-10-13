@@ -17,18 +17,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles({"test", "local"})
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class})
 @SpringBootTest(properties = "spring.datasource.password=test-only-password")
 @AutoConfigureMockMvc
-class ApiApplicationTests {
+class ApiApplicationTests extends JwtTestSupport {
 
 	@Autowired MockMvc mvc;
 
 	@Test
-	void applicationPublishesAValidEmptyContractWithoutTestFixtures() throws Exception {
+	void applicationPublishesOnlyItsShippedContractWithoutTestFixtures() throws Exception {
 		var spec = JsonMapper.builder().build().readTree(mvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-		assertThat(spec.path("paths").size()).isZero();
+		assertThat(spec.path("paths").size()).isEqualTo(1);
+		assertThat(spec.path("paths").has("/api/v1/me")).isTrue();
 		try (var input = getClass().getResourceAsStream("/openapi/oas-3.1-schema.json")) {
 			var registry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12);
 			assertThat(registry.getSchema(input, InputFormat.JSON).validate(spec)).isEmpty();
