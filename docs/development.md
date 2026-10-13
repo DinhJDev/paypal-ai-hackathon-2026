@@ -18,9 +18,12 @@ Use the hosted database connection in `suitefolk.us.auth0.com` and Free-compatib
    Enable its hosted database connection. Disable public sign-ups on that connection and provision
    the owner and a separate judge account manually; avoid enabling social connections for this demo.
 2. Register the API identifier `https://api.suitefolk.com` with **RS256** signing. This is a logical
-   audience, not a hosting requirement. Authorize the web application's user access to this API
-   under its access policy. Use short-lived access tokens, enable **Allow Offline Access**, and
-   enable rotating refresh tokens and the refresh-token grant for the web application.
+   audience, not a hosting requirement. If its **User-Delegated Access** policy is **Per-app
+   authorization**, open **Applications → APIs → Suitefolk API → Application Access**, edit the
+   web application, and grant **User-Delegated Access**. Do not grant **Client Access**; the app
+   uses a signed-in user's token, not machine-to-machine access. The API currently defines no
+   custom scopes. Use short-lived access tokens, enable **Allow Offline Access**, and enable
+   rotating refresh tokens and the refresh-token grant for the web application.
 3. Copy [`apps/web/.env.local.example`](../apps/web/.env.local.example) to `apps/web/.env.local`.
    Add the Client ID and Client Secret, then generate `AUTH0_SECRET` with:
 
@@ -39,6 +42,11 @@ Use the hosted database connection in `suitefolk.us.auth0.com` and Free-compatib
    ```
 
    Spring does **not** load `.env` files automatically. The API needs no Auth0 client secret.
+
+If login returns `Client is not authorized to access resource server`, check that the API identifier
+matches `AUTH0_AUDIENCE` exactly and that the web application has **User-Delegated Access** under
+**Application Access**. Grant only that access; keep Client Access disabled. This grant lets Auth0
+issue an API token; Suitefolk owner access still depends on PostgreSQL provisioning.
 
 Use the default Auth0 domain and hosted password login. Application owner access lives in PostgreSQL;
 Auth0 role management, Organizations, premium connections, and machine-to-machine tokens are unnecessary.
