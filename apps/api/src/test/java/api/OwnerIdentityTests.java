@@ -2,7 +2,6 @@ package api;
 
 import java.util.List;
 import java.util.UUID;
-import fixture.JwtFixture;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

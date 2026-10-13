@@ -1,9 +1,12 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { getAuth0 } from "@/lib/auth0";
 import { OwnerIdentityPanel } from "@/components/owner-identity-panel";
 
 async function Workspace() {
+  // Configuration may be supplied at deployment after a build without secrets.
+  await connection();
   const auth0 = getAuth0();
   if (!auth0) return <p>Sign-in is temporarily unavailable. Please try again later.</p>;
   const session = await auth0.getSession();

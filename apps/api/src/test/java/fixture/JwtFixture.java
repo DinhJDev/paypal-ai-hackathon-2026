@@ -27,10 +27,10 @@ public class JwtFixture {
 	private static final HttpServer SERVER = server();
 
 	public static void properties(DynamicPropertyRegistry properties) {
-			properties.add("spring.security.oauth2.resourceserver.jwt.issuer-uri", () -> ISSUER);
-			properties.add("spring.security.oauth2.resourceserver.jwt.audiences", () -> AUDIENCE);
-			properties.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri", () ->
-					"http://127.0.0.1:" + SERVER.getAddress().getPort() + "/jwks");
+		properties.add("spring.security.oauth2.resourceserver.jwt.issuer-uri", () -> ISSUER);
+		properties.add("spring.security.oauth2.resourceserver.jwt.audiences", () -> AUDIENCE);
+		properties.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri", () ->
+				"http://127.0.0.1:" + SERVER.getAddress().getPort() + "/jwks");
 	}
 
 	public static String token(String subject) {
