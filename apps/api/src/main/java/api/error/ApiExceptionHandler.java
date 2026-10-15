@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import api.rent.PayPalUnavailableException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
@@ -26,6 +27,13 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 	private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
 	public record ValidationError(String field, String message) { }
+
+	@ExceptionHandler(PayPalUnavailableException.class)
+	ResponseEntity<Object> handlePayPalUnavailable(PayPalUnavailableException exception, WebRequest request) {
+		var status = HttpStatus.SERVICE_UNAVAILABLE;
+		var problem = ProblemDetail.forStatusAndDetail(status, "PayPal sandbox is temporarily unavailable.");
+		return handleExceptionInternal(exception, problem, new HttpHeaders(), status, request);
+	}
 
 	@Override
 	protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException exception,

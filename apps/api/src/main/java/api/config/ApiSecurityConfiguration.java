@@ -39,7 +39,9 @@ public class ApiSecurityConfiguration {
 	SecurityFilterChain apiSecurity(HttpSecurity http,
 			ApiAuthenticationEntryPoint entryPoint) throws Exception {
 		return http.securityMatcher("/api/**")
-			.authorizeHttpRequests(requests -> requests.anyRequest().authenticated())
+			.authorizeHttpRequests(requests -> requests
+				.requestMatchers("/api/v1/rent-schedules/paypal/return", "/api/v1/rent-schedules/paypal/webhook").permitAll()
+				.anyRequest().authenticated())
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			// API credentials are bearer headers; the fallback chain retains CSRF protection.
 			.csrf(csrf -> csrf.disable())

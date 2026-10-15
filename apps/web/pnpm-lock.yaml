@@ -14,6 +14,18 @@ importers:
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@bryntum/calendar':
+        specifier: npm:@bryntum/calendar-trial@7.3.7
+        version: '@bryntum/calendar-trial@7.3.7'
+      '@bryntum/calendar-react':
+        specifier: 7.3.7
+        version: 7.3.7
+      ag-grid-community:
+        specifier: 36.2.0
+        version: 36.2.0
+      ag-grid-react:
+        specifier: 36.2.0
+        version: 36.2.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -241,6 +253,17 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  '@bryntum/calendar-react@7.3.7':
+    resolution: {integrity: sha512-Re0X0e6jUf4aq6NfKYG10Ho1G4eeTL+i72D4EWpdaQKM3zhoEedDkp5QaNZzhOShyCu6YaNgs/Tz7sf0iHGyYw==}
+    engines: {node: '>=0.10.0'}
+
+  '@bryntum/calendar-trial-lib@1.0.1':
+    resolution: {integrity: sha512-OJa56mAf2r8X//toJ+u8pp8QgIfNIBb0E4jyeCoZY0inu4RJlgl3aLb9M2u7Mn79qF6wTICh/iaI9Xet4r4K7w==}
+
+  '@bryntum/calendar-trial@7.3.7':
+    resolution: {integrity: sha512-dNpncm1TwD23LEwdZNJ2e/4SuIbhuHQMPYMy8osIPFIHOKY/votZpoNufznN18mPIPeInRxzFpoGupocDw8vQw==}
+    engines: {node: '>=0.10.0'}
 
   '@dotenvx/dotenvx@1.75.1':
     resolution: {integrity: sha512-/BITOC9dmS/edY2zQwZNicQ059O6RKabtQfyEafV0nGtfYRNHYy1DIPiYVcov40+tob9hfmBnbR963dS+EQ1DQ==}
@@ -1034,6 +1057,21 @@ packages:
     resolution: {integrity: sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  ag-charts-types@14.2.0:
+    resolution: {integrity: sha512-4pDV6/4zbzPN7t607Gr1o6DO9RhmPafQGr+hIpTJBaerbaMoC+WOO3v/wkxFbvCNrHKOexEKSfNTH7PaAR4UzA==}
+
+  ag-grid-community@36.2.0:
+    resolution: {integrity: sha512-tK0Toj7t0fV/OMLPnDc0xlYKAqDbnCT3iJodYSn2TJ541caU8jPdYwWhMdW+AP2+pUNwFiJVgc04eJNfvBPsWw==}
+
+  ag-grid-react@36.2.0:
+    resolution: {integrity: sha512-7dsaR4Ga8/bJAOov7XJqxsDc1JAjUU5Bmh9+s4U9+/TKIdSsaVo53SuZb2yEFSB1elv3eh6aZP8a1fqGZehXwA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  ag-stack@36.2.0:
+    resolution: {integrity: sha512-f3XT2htFs9dUPcHni2z9ak69QNta5ODEpooHuuNvbjN98JkokpEqRQ9YLQHQJFdCcgi9Ybs/j3zkkvmNRamIPg==}
 
   ajv-formats@2.1.1:
     resolution: {integrity: sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==}
@@ -3482,6 +3520,14 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
 
+  '@bryntum/calendar-react@7.3.7': {}
+
+  '@bryntum/calendar-trial-lib@1.0.1': {}
+
+  '@bryntum/calendar-trial@7.3.7':
+    dependencies:
+      '@bryntum/calendar-trial-lib': 1.0.1
+
   '@dotenvx/dotenvx@1.75.1':
     dependencies:
       '@dotenvx/primitives': 0.8.0
@@ -4193,6 +4239,22 @@ snapshots:
       acorn: 8.19.0
 
   acorn@8.19.0: {}
+
+  ag-charts-types@14.2.0: {}
+
+  ag-grid-community@36.2.0:
+    dependencies:
+      ag-charts-types: 14.2.0
+      ag-stack: 36.2.0
+
+  ag-grid-react@36.2.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
+    dependencies:
+      ag-grid-community: 36.2.0
+      prop-types: 15.8.1
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+
+  ag-stack@36.2.0: {}
 
   ajv-formats@2.1.1(ajv@8.20.0):
     optionalDependencies:

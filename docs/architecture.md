@@ -1,14 +1,14 @@
 # Architecture
 
-Suitefolk has an authentication foundation for salon suite owners. Tenant, AI, and payment workflows
-in the [README](../README.md) remain planned.
+Suitefolk has an authenticated owner workspace and a sandbox-only rent autopay slice. Churn intelligence,
+tenant support, and suite matching remain planned in the [README](../README.md).
 
 ## Repository layout
 
 | Location | Responsibility |
 | --- | --- |
-| [`apps/web`](../apps/web) | Next.js App Router, hosted sign-in, server sessions, and owner dashboard. |
-| [`apps/api`](../apps/api) | Spring Boot, owner identity/access, JWT validation, and OpenAPI. |
+| [`apps/web`](../apps/web) | Next.js App Router, hosted sign-in, server sessions, owner dashboard, and rent-schedule controls. |
+| [`apps/api`](../apps/api) | Spring Boot, owner identity/access, JWT validation, rent schedules, PayPal sandbox calls, and OpenAPI. |
 | [`compose.yaml`](../compose.yaml) | Local PostgreSQL 17 with persistent storage and a localhost-only port. |
 | [`scripts`](../scripts) | Explicit owner-access provisioning. |
 | [`docs`](.) | Focused developer guides maintained with the code. |
@@ -28,13 +28,21 @@ Spring validates RS256 signatures through Auth0 JWKS plus issuer, audience, time
 An enabled `owner_access` row keyed by **issuer + subject** grants `OWNER` access and supplies a stable
 internal UUID. Login, email, and token roles cannot provision access. Disabled or missing records return
 403; invalid credentials return 401. A separate judge login receives explicitly provisioned demo access.
-There are no tenant, rent, payment, or AI business modules yet.
+Rent schedules are scoped to the authenticated owner UUID. A tenant authorizes a PayPal vault payment
+method through a hosted approval link; the PayPal payment token stays in the API database and never
+enters web responses. The API creates weekly or monthly USD schedules, records individual due payments,
+and advances the due date only after a completed sandbox charge. Monthly dates retain the original day
+anchor across shorter months. Owners can inspect approval/payment state or pause schedules.
 
 ## API foundation
 
 Spring MVC, JPA, Flyway, Spring Security, validation, Actuator, Spring AI, and Spring Modulith are present.
-Flyway creates the owner-access table. Bearer authentication is limited to `/api/**`; the fallback
+Flyway creates owner-access and rent/payment tables. Owner rent routes require bearer authentication;
+only the PayPal return and signature-checked webhook endpoints are public. The fallback
 security chain retains CSRF and permits documentation only in `local` (plus error dispatches).
+The payment client is pinned to PayPal's sandbox API hostname. The daily scheduler defaults off and
+requires the explicit `PAYPAL_AUTOPAY_ENABLED=true` setting, so ordinary development and CI make no
+charges. The local setup and webhook requirements are in the [development guide](development.md).
 Documentation is disabled by default. Identity and error responses follow the published OpenAPI 3.1
 schemas, including flattened RFC 9457 extensions. See [development](development.md) for setup and conventions.
 

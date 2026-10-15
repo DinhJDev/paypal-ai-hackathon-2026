@@ -5,20 +5,18 @@ Suitefolk is an open-source platform in development for salon suite owners to su
 **Hackathon submission deadline:** November 12, 2026, at 12:00 PM PST (2:00 PM CST).
 See the [official PayPal AI Hackathon schedule](https://paypalaihackathon.devpost.com/details/dates).
 
-## Planned features
+## Features in development
 
-- **Tenant support:** AI-assisted help with tenant questions and issues.
-- **Churn detection:** identify tenants who may be at risk of leaving.
-- **Suite matching:** match tenants with suitable salon suites.
-- **Rent collection:** collect rent through PayPal.
+- **Owner workspace:** hosted sign-in with explicitly provisioned owner access.
+- **Rent autopay:** weekly or monthly rent schedules with tenant-approved PayPal sandbox vaulting and owner controls.
+- **Churn prevention:** explainable early warnings for tenants who may be at risk of leaving.
+- **Tenant support and suite matching:** AI-assisted help and suitable suite recommendations.
 
 ## How it works
 
-The intended workflow connects a Next.js web interface to a Spring Boot API backed by PostgreSQL.
-The API will handle tenant workflows, AI assistance, and PayPal integration.
-
-The authentication foundation connects hosted sign-in to API-confirmed owner access.
-The business features above are still to be built.
+The Next.js dashboard calls a Spring Boot API backed by PostgreSQL. Owners create rent schedules,
+tenants approve the recurring terms through PayPal, and the API records sandbox payments when its
+autopay switch is explicitly enabled. Live PayPal processing is not configured.
 
 ## Developer docs
 

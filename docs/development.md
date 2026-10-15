@@ -54,6 +54,36 @@ Check the tenant's actual Free plan before the demo; trial-only features must no
 See Auth0's [web registration](https://auth0.com/docs/get-started/auth0-overview/create-applications/regular-web-apps)
 and [refresh-token setup](https://auth0.com/docs/secure/tokens/refresh-tokens/configure-refresh-token-rotation).
 
+## PayPal sandbox rent autopay
+
+Rent autopay is sandbox-only. The API calls `https://api-m.sandbox.paypal.com` directly and has no
+live-mode setting. Add the sandbox REST app's client ID and secret to the ignored root
+`.env.paypal.local` file using `PAYPAL_CLIENT_ID=...` and `PAYPAL_CLIENT_SECRET=...`. From the repository
+root, in the same PowerShell session that will run the API, load those values without printing them:
+
+```powershell
+./scripts/import-paypal-sandbox-env.ps1
+```
+
+Start PostgreSQL and the API using the commands below. The web dashboard stays on its regular `.env.local`
+configuration; PayPal credentials belong only in the API process. The scheduler is disabled by default.
+For an intentional local sandbox charge test, set `$env:PAYPAL_AUTOPAY_ENABLED = 'true'` in the API
+session before startup. This enables the 9 AM America/Chicago daily run for due schedules in the
+sandbox; it does not schedule real/live money movements. Set it back to `false` after the test.
+
+The owner creates a weekly or monthly USD schedule and shares the displayed PayPal approval link with
+the tenant. After approval, the API verifies the setup token with PayPal, creates the vault payment
+token, and stores that token server-side. An approved schedule is charged on its due date by the
+sandbox-only scheduler. Each charge uses an idempotency key derived from schedule and due date; the
+owner dashboard shows recent payment state and can pause future charges. A failed charge pauses the
+schedule for manual review; automated retries/dunning are out of scope for this slice.
+
+For webhook verification, configure a sandbox webhook for `POST /api/v1/rent-schedules/paypal/webhook`
+and set its webhook ID as `PAYPAL_WEBHOOK_ID`. PayPal must be able to reach the API over HTTPS, so
+local webhook tests require a tunnel. The public PayPal return endpoint accepts only setup-token IDs
+already recorded for a schedule, then independently checks approval status with PayPal. Do not expose
+the vault payment token or PayPal credentials to the browser.
+
 ## Run locally
 
 From the root, with the Auth0 variables exported, choose a database password and start the API:
@@ -103,7 +133,8 @@ From `apps/api`, with JDK 25 and Docker running:
 ```
 
 Tests use disposable PostgreSQL and local generated signing keys, including invalid/expired/wrong-audience
-credentials and owner access denial. No Auth0 secrets, external token requests, or paid AI calls are needed.
+credentials, owner access denial, sandbox callback/signature handling, and idempotent payment scheduling.
+PayPal calls are mocked in automated tests; no PayPal credentials or live calls are needed.
 
 From `apps/web`:
 
