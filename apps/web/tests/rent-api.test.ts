@@ -8,7 +8,7 @@ vi.mock("@/lib/auth0", () => ({ getAuth0: factory }));
 const schedule = {
   id: "f216e512-81d4-4f50-a0fc-317952e91f15", tenantLabel: "Suite 1", amount: 425,
   currency: "USD", frequency: "WEEKLY", nextDueDate: "2026-10-22", status: "PENDING_APPROVAL",
-  approvalUrl: "https://www.sandbox.paypal.com/approve/demo", payments: [], paypalPaymentTokenId: "never-send-to-browser",
+  autopayEnabled: false, approvalUrl: "https://www.sandbox.paypal.com/approve/demo", payments: [], paypalPaymentTokenId: "never-send-to-browser",
 };
 
 beforeEach(() => {
@@ -29,7 +29,7 @@ it("gets owner schedules through a private no-store server-side API proxy", asyn
   expect(await response.json()).toEqual([{
     id: schedule.id, tenantLabel: schedule.tenantLabel, amount: schedule.amount, currency: "USD",
     frequency: "WEEKLY", nextDueDate: schedule.nextDueDate, status: "PENDING_APPROVAL",
-    approvalUrl: schedule.approvalUrl, payments: [],
+    autopayEnabled: false, approvalUrl: schedule.approvalUrl, payments: [],
   }]);
   expect(request).toHaveBeenCalledWith(new URL("http://localhost:8080/api/v1/rent-schedules"), expect.objectContaining({
     method: "GET", headers: { Authorization: "Bearer private-access-token", Accept: "application/json" }, cache: "no-store",

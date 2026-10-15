@@ -2,6 +2,7 @@ package api.rent;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -9,8 +10,10 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -25,7 +28,7 @@ class PayPalClientTest {
 	void createsARecurringSetupTokenForTheTenantToApprove() {
 		RestClient.Builder builder = RestClient.builder();
 		MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-		PayPalClient client = new PayPalClient(builder, properties());
+		PayPalClient client = new PayPalClient(builder, properties(), JsonMapper.builder().build());
 		expectAccessToken(server);
 		server.expect(requestTo(SANDBOX + "/v3/vault/setup-tokens"))
 				.andExpect(method(HttpMethod.POST))
@@ -47,10 +50,31 @@ class PayPalClientTest {
 	}
 
 	@Test
+	void sendsTheOriginalWebhookEventJsonToPayPalSignatureVerification() throws Exception {
+		RestClient.Builder builder = RestClient.builder();
+		MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+		PayPalClient client = new PayPalClient(builder, webhookProperties(), JsonMapper.builder().build());
+		expectAccessToken(server);
+		String eventJson = "{\n  \"id\": \"event-demo\",\n  \"event_type\": \"PAYMENT.CAPTURE.COMPLETED\"\n}";
+		server.expect(requestTo(SANDBOX + "/v1/notifications/verify-webhook-signature"))
+				.andExpect(method(HttpMethod.POST))
+				.andExpect(content().string(containsString("\"webhook_event\":" + eventJson)))
+				.andRespond(withSuccess("{\"verification_status\":\"SUCCESS\"}", MediaType.APPLICATION_JSON));
+
+		assertThat(client.verifyWebhook(Map.of(
+				"paypal-transmission-id", "transmission-demo",
+				"paypal-transmission-time", "2026-10-15T12:00:00Z",
+				"paypal-cert-url", "https://api-m.sandbox.paypal.com/cert",
+				"paypal-auth-algo", "SHA256withRSA",
+				"paypal-transmission-sig", "signature-demo"), eventJson.getBytes(java.nio.charset.StandardCharsets.UTF_8))).isTrue();
+		server.verify();
+	}
+
+	@Test
 	void chargesAStoredTokenInOneSandboxOrderRequestAndReadsItsCapture() {
 		RestClient.Builder builder = RestClient.builder();
 		MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-		PayPalClient client = new PayPalClient(builder, properties());
+		PayPalClient client = new PayPalClient(builder, properties(), JsonMapper.builder().build());
 		expectAccessToken(server);
 		server.expect(requestTo(SANDBOX + "/v2/checkout/orders"))
 				.andExpect(method(HttpMethod.POST))
@@ -80,6 +104,12 @@ class PayPalClientTest {
 
 	private PayPalProperties properties() {
 		return new PayPalProperties("sandbox-client-id", "sandbox-client-secret", "", false,
+				"http://localhost:8080/api/v1/rent-schedules/paypal/return",
+				"http://localhost:3000/rent/paypal/return?status=cancelled", "http://localhost:3000");
+	}
+
+	private PayPalProperties webhookProperties() {
+		return new PayPalProperties("sandbox-client-id", "sandbox-client-secret", "webhook-demo", false,
 				"http://localhost:8080/api/v1/rent-schedules/paypal/return",
 				"http://localhost:3000/rent/paypal/return?status=cancelled", "http://localhost:3000");
 	}

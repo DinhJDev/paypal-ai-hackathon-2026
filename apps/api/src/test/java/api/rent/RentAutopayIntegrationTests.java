@@ -120,6 +120,37 @@ class RentAutopayIntegrationTests extends JwtTestSupport {
 	}
 
 	@Test
+	void missedRentDatePausesForOwnerReviewInsteadOfCatchingUpCharges() {
+		UUID scheduleId = createActiveDueSchedule();
+		when(paypal.captureRent(eq("vault-demo"), eq(new BigDecimal("425.00")), anyString(), anyString()))
+				.thenReturn(new PayPalClient.ChargeResult("order-demo", "capture-demo", "COMPLETED", "COMPLETED"));
+		LocalDate missedDueDate = LocalDate.now().minusDays(1);
+		jdbc.update("UPDATE rent_schedule SET next_due_date = ? WHERE id = ?", missedDueDate, scheduleId);
+
+		schedules.processDuePayments(LocalDate.now());
+		schedules.processDuePayments(LocalDate.now().plusDays(1));
+
+		assertThat(jdbc.queryForObject("SELECT status FROM rent_schedule WHERE id = ?", String.class, scheduleId))
+				.isEqualTo("PAST_DUE");
+		assertThat(jdbc.queryForObject("SELECT next_due_date FROM rent_schedule WHERE id = ?", LocalDate.class, scheduleId))
+				.isEqualTo(missedDueDate);
+		assertThat(jdbc.queryForObject("SELECT count(*) FROM rent_payment WHERE schedule_id = ?", Integer.class, scheduleId))
+				.isZero();
+		verify(paypal, never()).captureRent(anyString(), any(), anyString(), anyString());
+	}
+
+	@Test
+	void scheduleReportsAutopayAsDisabledWhenSandboxChargesAreOff() throws Exception {
+		createActiveDueSchedule();
+
+		mvc.perform(get("/api/v1/rent-schedules")
+				.header("Authorization", "Bearer " + JwtFixture.token(OWNER_SUBJECT)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].status").value("ACTIVE"))
+			.andExpect(jsonPath("$[0].autopayEnabled").value(false));
+	}
+
+	@Test
 	void failedDueChargeMarksPaymentAndScheduleForReview() {
 		UUID scheduleId = createActiveDueSchedule();
 		LocalDate dueDate = LocalDate.now();

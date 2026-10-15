@@ -14,13 +14,15 @@ function statusStyles(status: RentSchedule["status"]): string {
     case "ACTIVE": return "border-emerald-200 bg-emerald-50 text-emerald-800";
     case "PENDING_APPROVAL": return "border-amber-200 bg-amber-50 text-amber-800";
     case "PAYMENT_FAILED":
-    case "SETUP_FAILED": return "border-rose-200 bg-rose-50 text-rose-800";
+    case "SETUP_FAILED":
+    case "PAST_DUE": return "border-rose-200 bg-rose-50 text-rose-800";
     case "PAUSED": return "border-slate-200 bg-slate-100 text-slate-700";
   }
 }
 
-function statusLabel(status: RentSchedule["status"]): string {
-  return status.toLowerCase().replaceAll("_", " ");
+function statusLabel(schedule: RentSchedule): string {
+  if (schedule.status === "ACTIVE" && !schedule.autopayEnabled) return "approved · charges off";
+  return schedule.status.toLowerCase().replaceAll("_", " ");
 }
 
 type PortfolioGridProps = {
@@ -70,8 +72,11 @@ export function PortfolioGrid({ schedules, searchText, updatingScheduleId, onUpd
       field: "status",
       minWidth: 155,
       cellRenderer: (params: ICellRendererParams<RentSchedule>) => {
-        const status = params.value as RentSchedule["status"] | undefined;
-        return status ? <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${statusStyles(status)}`}>{statusLabel(status)}</span> : null;
+        const schedule = params.data;
+        const status = schedule?.status;
+        return status && schedule
+          ? <span className={"inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize " + statusStyles(status)}>{statusLabel(schedule)}</span>
+          : null;
       },
     },
     {

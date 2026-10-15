@@ -7,7 +7,7 @@ import {
   type RentSchedule,
 } from "@/lib/rent-dashboard-model";
 
-const schedule = (overrides: Partial<RentSchedule> = {}): RentSchedule => ({
+const schedule = (overrides: Partial<RentSchedule> & { autopayEnabled?: boolean } = {}): RentSchedule => ({
   id: "f216e512-81d4-4f50-a0fc-317952e91f15",
   tenantLabel: "Suite 1",
   amount: 500,
@@ -15,6 +15,7 @@ const schedule = (overrides: Partial<RentSchedule> = {}): RentSchedule => ({
   frequency: "MONTHLY",
   nextDueDate: "2026-10-16",
   status: "ACTIVE",
+  autopayEnabled: true,
   approvalUrl: null,
   payments: [],
   ...overrides,
@@ -37,6 +38,15 @@ describe("rent dashboard model", () => {
       dueWithinSevenDaysCount: 3,
       dueWithinSevenDaysAmount: 1400,
     });
+  });
+
+  it("counts only schedules with automatic charges enabled", () => {
+    const schedules = [
+      schedule(),
+      schedule({ id: "charges-off", autopayEnabled: false }),
+    ];
+
+    expect(summarizeRentSchedules(schedules, "2026-10-15").activeAutopayCount).toBe(1);
   });
 
   it("builds a vendor-neutral, date-sorted calendar feed from upcoming rent and recorded payments", () => {
@@ -95,9 +105,11 @@ describe("rent dashboard model", () => {
       schedule({ id: "pending", tenantLabel: "Suite 2", status: "PENDING_APPROVAL" }),
       schedule({ id: "failed", tenantLabel: "Suite 3", status: "PAYMENT_FAILED" }),
       schedule({ id: "setup", tenantLabel: "Suite 4", status: "SETUP_FAILED" }),
+      schedule({ id: "past-due", tenantLabel: "Suite 5", status: "PAST_DUE" }),
     ];
 
     expect(buildRentAttentionItems(schedules)).toEqual([
+      { scheduleId: "past-due", tenantLabel: "Suite 5", status: "PAST_DUE", message: "A rent date was missed. Automatic charges are paused for owner review." },
       { scheduleId: "failed", tenantLabel: "Suite 3", status: "PAYMENT_FAILED", message: "A rent payment needs attention." },
       { scheduleId: "setup", tenantLabel: "Suite 4", status: "SETUP_FAILED", message: "Autopay setup needs attention." },
       { scheduleId: "pending", tenantLabel: "Suite 2", status: "PENDING_APPROVAL", message: "Tenant approval is still pending." },

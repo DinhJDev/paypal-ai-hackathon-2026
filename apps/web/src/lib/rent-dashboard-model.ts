@@ -4,7 +4,8 @@ export type RentScheduleStatus =
   | "SETUP_FAILED"
   | "ACTIVE"
   | "PAUSED"
-  | "PAYMENT_FAILED";
+  | "PAYMENT_FAILED"
+  | "PAST_DUE";
 export type RentPaymentStatus = "PROCESSING" | "COMPLETED" | "FAILED" | "REFUNDED";
 
 export type RentPayment = {
@@ -22,6 +23,7 @@ export type RentSchedule = {
   frequency: RentFrequency;
   nextDueDate: string;
   status: RentScheduleStatus;
+  autopayEnabled: boolean;
   approvalUrl: string | null;
   payments: RentPayment[];
 };
@@ -57,7 +59,7 @@ export type RentDashboardSummary = {
 export type RentAttentionItem = {
   scheduleId: string;
   tenantLabel: string;
-  status: Extract<RentScheduleStatus, "PENDING_APPROVAL" | "SETUP_FAILED" | "PAYMENT_FAILED">;
+  status: Extract<RentScheduleStatus, "PENDING_APPROVAL" | "SETUP_FAILED" | "PAYMENT_FAILED" | "PAST_DUE">;
   message: string;
 };
 
@@ -86,9 +88,9 @@ export function summarizeRentSchedules(
   const dueSoonCents = dueSoon.reduce((total, schedule) => total + Math.round(schedule.amount * 100), 0);
 
   return {
-    activeAutopayCount: schedules.filter(schedule => schedule.status === "ACTIVE").length,
+    activeAutopayCount: schedules.filter(schedule => schedule.status === "ACTIVE" && schedule.autopayEnabled).length,
     pendingApprovalCount: schedules.filter(schedule => schedule.status === "PENDING_APPROVAL").length,
-    paymentIssueCount: schedules.filter(schedule => schedule.status === "PAYMENT_FAILED").length,
+    paymentIssueCount: schedules.filter(schedule => schedule.status === "PAYMENT_FAILED" || schedule.status === "PAST_DUE").length,
     dueWithinSevenDaysCount: dueSoon.length,
     dueWithinSevenDaysAmount: dueSoonCents / 100,
   };
@@ -96,11 +98,13 @@ export function summarizeRentSchedules(
 
 export function buildRentAttentionItems(schedules: RentSchedule[]): RentAttentionItem[] {
   const attentionOrder: Record<RentAttentionItem["status"], number> = {
-    PAYMENT_FAILED: 0,
-    SETUP_FAILED: 1,
-    PENDING_APPROVAL: 2,
+    PAST_DUE: 0,
+    PAYMENT_FAILED: 1,
+    SETUP_FAILED: 2,
+    PENDING_APPROVAL: 3,
   };
   const messages: Record<RentAttentionItem["status"], string> = {
+    PAST_DUE: "A rent date was missed. Automatic charges are paused for owner review.",
     PAYMENT_FAILED: "A rent payment needs attention.",
     SETUP_FAILED: "Autopay setup needs attention.",
     PENDING_APPROVAL: "Tenant approval is still pending.",
@@ -108,7 +112,8 @@ export function buildRentAttentionItems(schedules: RentSchedule[]): RentAttentio
 
   return schedules
     .filter((schedule): schedule is RentSchedule & { status: RentAttentionItem["status"] } =>
-      schedule.status === "PAYMENT_FAILED" || schedule.status === "SETUP_FAILED" || schedule.status === "PENDING_APPROVAL",
+      schedule.status === "PAST_DUE" || schedule.status === "PAYMENT_FAILED" ||
+      schedule.status === "SETUP_FAILED" || schedule.status === "PENDING_APPROVAL",
     )
     .map(schedule => ({
       scheduleId: schedule.id,
@@ -179,5 +184,3 @@ export function buildRentCalendarEvents(
     left.kind.localeCompare(right.kind),
   );
 }
-
-\n

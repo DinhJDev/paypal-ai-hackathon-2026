@@ -32,7 +32,8 @@ Rent schedules are scoped to the authenticated owner UUID. A tenant authorizes a
 method through a hosted approval link; the PayPal payment token stays in the API database and never
 enters web responses. The API creates weekly or monthly USD schedules, records individual due payments,
 and advances the due date only after a completed sandbox charge. Monthly dates retain the original day
-anchor across shorter months. Owners can inspect approval/payment state or pause schedules.
+anchor across shorter months. Missed due dates pause for owner review rather than triggering automatic
+catch-up charges. The dashboard distinguishes tenant approval from the API-wide automatic-charge switch.
 
 ## API foundation
 

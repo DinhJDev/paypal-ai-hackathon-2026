@@ -27,7 +27,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping(path = "/api/v1/rent-schedules")
@@ -36,11 +38,14 @@ public class RentScheduleController {
 	private final RentScheduleService schedules;
 	private final PayPalClient paypal;
 	private final PayPalProperties properties;
+	private final ObjectMapper objectMapper;
 
-	public RentScheduleController(RentScheduleService schedules, PayPalClient paypal, PayPalProperties properties) {
+	public RentScheduleController(RentScheduleService schedules, PayPalClient paypal, PayPalProperties properties,
+			ObjectMapper objectMapper) {
 		this.schedules = schedules;
 		this.paypal = paypal;
 		this.properties = properties;
+		this.objectMapper = objectMapper;
 	}
 
 	@Operation(operationId = "createRentSchedule", summary = "Create an owner rent schedule and PayPal sandbox approval link")
@@ -118,14 +123,21 @@ public class RentScheduleController {
 	})
 	@SecurityRequirements
 	@PostMapping(path = "/paypal/webhook", consumes = "application/json")
-	public ResponseEntity<Void> paypalWebhook(@RequestHeader HttpHeaders headers, @RequestBody JsonNode event) {
+	public ResponseEntity<Void> paypalWebhook(@RequestHeader HttpHeaders headers, @RequestBody byte[] rawEventJson) {
+		JsonNode event;
+		try {
+			event = objectMapper.readTree(rawEventJson);
+		} catch (JacksonException | IllegalArgumentException exception) {
+			return ResponseEntity.badRequest().build();
+		}
+		if (event == null || !event.isObject()) return ResponseEntity.badRequest().build();
 		Map<String, String> transmission = Map.of(
 				"paypal-transmission-id", header(headers, "paypal-transmission-id"),
 				"paypal-transmission-time", header(headers, "paypal-transmission-time"),
 				"paypal-cert-url", header(headers, "paypal-cert-url"),
 				"paypal-auth-algo", header(headers, "paypal-auth-algo"),
 				"paypal-transmission-sig", header(headers, "paypal-transmission-sig"));
-		if (transmission.values().stream().anyMatch(String::isBlank) || !paypal.verifyWebhook(transmission, event)) {
+		if (transmission.values().stream().anyMatch(String::isBlank) || !paypal.verifyWebhook(transmission, rawEventJson)) {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 		}
 		if (!schedules.recordVerifiedWebhook(event)) return ResponseEntity.badRequest().build();

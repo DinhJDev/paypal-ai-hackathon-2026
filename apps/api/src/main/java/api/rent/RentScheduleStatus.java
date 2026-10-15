@@ -5,5 +5,6 @@ public enum RentScheduleStatus {
 	SETUP_FAILED,
 	ACTIVE,
 	PAUSED,
-	PAYMENT_FAILED
+	PAYMENT_FAILED,
+	PAST_DUE
 }

@@ -101,6 +101,10 @@ public class RentScheduleService {
 		LocalDate dueDate = schedule.getNextDueDate();
 		String idempotencyKey = "rent-" + schedule.getId() + "-" + dueDate;
 		RentPayment payment = payments.findByScheduleIdAndDueDate(schedule.getId(), dueDate).orElse(null);
+		if (dueDate.isBefore(today) && (payment == null || payment.getStatus() != RentPaymentStatus.PROCESSING)) {
+			schedule.markPastDue();
+			return;
+		}
 		if (payment != null && payment.getStatus() != RentPaymentStatus.PROCESSING) return;
 		if (payment == null) {
 			payment = payments.saveAndFlush(new RentPayment(UUID.randomUUID(), schedule.getId(), dueDate,
@@ -113,6 +117,7 @@ public class RentScheduleService {
 					!result.orderId().isBlank() && !result.captureId().isBlank()) {
 				payment.complete(result.orderId(), result.captureId());
 				schedule.advanceDueDate();
+				if (schedule.getNextDueDate().isBefore(today)) schedule.markPastDue();
 			} else {
 				payment.recordExternalIds(result.orderId(), result.captureId());
 				payment.fail("PAYMENT_NOT_COMPLETED");
@@ -172,6 +177,7 @@ public class RentScheduleService {
 				.map(payment -> new RentPaymentView(payment.getDueDate(), payment.getAmount(), "USD", payment.getStatus()))
 				.toList();
 		return new RentScheduleView(schedule.getId(), schedule.getTenantLabel(), schedule.getAmount(), "USD",
-				schedule.getFrequency(), schedule.getNextDueDate(), schedule.getStatus(), schedule.getApprovalUrl(), history);
+				schedule.getFrequency(), schedule.getNextDueDate(), schedule.getStatus(), paypal.isAutopayEnabled(),
+				schedule.getApprovalUrl(), history);
 	}
 }

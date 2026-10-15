@@ -45,7 +45,7 @@ function displayDate(value: string): string {
 }
 
 function statusClass(status: string): string {
-  if (status === "FAILED" || status === "PAYMENT_FAILED" || status === "SETUP_FAILED") return "bg-rose-50 text-rose-700";
+  if (status === "FAILED" || status === "PAYMENT_FAILED" || status === "SETUP_FAILED" || status === "PAST_DUE") return "bg-rose-50 text-rose-700";
   if (status === "PENDING_APPROVAL" || status === "PROCESSING") return "bg-amber-50 text-amber-800";
   if (status === "COMPLETED" || status === "ACTIVE") return "bg-emerald-50 text-emerald-800";
   return "bg-slate-100 text-slate-600";
@@ -103,7 +103,9 @@ export function RentAutopayPanel() {
         setScheduleMessage({
           id,
           text: updated.status === "ACTIVE"
-            ? "PayPal approval confirmed. Autopay is active."
+            ? updated.autopayEnabled
+              ? "PayPal approval confirmed. Automatic charges are enabled."
+              : "PayPal approval confirmed. Automatic charges are disabled in API settings."
             : `PayPal approval is still pending. Current status: ${updated.status.replaceAll("_", " ")}.`,
         });
       }
@@ -178,7 +180,7 @@ export function RentAutopayPanel() {
         </article>
         <article className="rounded-xl border bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between text-sm text-slate-600">
-            <span>Autopay active</span><CheckCircle2 className="size-4 text-emerald-600" aria-hidden="true" />
+            <span>Automatic charges enabled</span><CheckCircle2 className="size-4 text-emerald-600" aria-hidden="true" />
           </div>
           <p className="mt-3 text-2xl font-semibold tracking-tight">{summary.activeAutopayCount}</p>
           <p className="mt-1 text-xs text-slate-500">of {schedules.length} rent schedules</p>
@@ -367,5 +369,3 @@ export function RentAutopayPanel() {
 function Building2Placeholder() {
   return <div className="mx-auto flex size-11 items-center justify-center rounded-xl bg-slate-100 text-slate-500"><Building2 className="size-5" aria-hidden="true" /></div>;
 }
-
-\n

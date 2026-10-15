@@ -75,8 +75,10 @@ The owner creates a weekly or monthly USD schedule and shares the displayed PayP
 the tenant. After approval, the API verifies the setup token with PayPal, creates the vault payment
 token, and stores that token server-side. An approved schedule is charged on its due date by the
 sandbox-only scheduler. Each charge uses an idempotency key derived from schedule and due date; the
-owner dashboard shows recent payment state and can pause future charges. A failed charge pauses the
-schedule for manual review; automated retries/dunning are out of scope for this slice.
+owner dashboard shows recent payment state and can pause future charges. A failed or missed due date
+pauses the schedule for manual review; missed periods are not charged as automatic catch-up. The
+dashboard reports separately whether tenant approval is complete and automatic charges are enabled.
+Automated retries/dunning are out of scope for this slice.
 
 For webhook verification, configure a sandbox webhook for `POST /api/v1/rent-schedules/paypal/webhook`
 and set its webhook ID as `PAYPAL_WEBHOOK_ID`. PayPal must be able to reach the API over HTTPS, so

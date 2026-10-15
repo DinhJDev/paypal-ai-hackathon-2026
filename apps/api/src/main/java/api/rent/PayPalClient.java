@@ -1,5 +1,6 @@
 package api.rent;
 
+import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -11,7 +12,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -25,11 +28,13 @@ public class PayPalClient {
 	private static final String SANDBOX_API = "https://api-m.sandbox.paypal.com";
 	private final RestClient client;
 	private final PayPalProperties properties;
+	private final ObjectMapper objectMapper;
 	private volatile CachedAccessToken cachedAccessToken;
 
-	public PayPalClient(RestClient.Builder builder, PayPalProperties properties) {
+	public PayPalClient(RestClient.Builder builder, PayPalProperties properties, ObjectMapper objectMapper) {
 		this.client = builder.baseUrl(SANDBOX_API).build();
 		this.properties = properties;
+		this.objectMapper = objectMapper;
 	}
 
 	public record SetupToken(String id, String approvalUrl) { }
@@ -39,6 +44,7 @@ public class PayPalClient {
 	private record CachedAccessToken(String value, Instant expiresAt) { }
 
 	public boolean isConfigured() { return properties.configured(); }
+	public boolean isAutopayEnabled() { return properties.configured() && properties.autopayEnabled(); }
 
 	public SetupToken createSetupToken(UUID scheduleId, Frequency frequency, BigDecimal amount, LocalDate nextDueDate) {
 		return call(() -> {
@@ -146,8 +152,9 @@ public class PayPalClient {
 		});
 	}
 
-	public boolean verifyWebhook(Map<String, String> transmissionHeaders, JsonNode event) {
-		if (!properties.configured() || properties.webhookId() == null || properties.webhookId().isBlank()) return false;
+	public boolean verifyWebhook(Map<String, String> transmissionHeaders, byte[] rawEventJson) {
+		if (!properties.configured() || properties.webhookId() == null || properties.webhookId().isBlank() ||
+				rawEventJson == null || rawEventJson.length == 0) return false;
 		return call(() -> {
 			Map<String, Object> request = new LinkedHashMap<>();
 			request.put("transmission_id", transmissionHeaders.get("paypal-transmission-id"));
@@ -156,10 +163,22 @@ public class PayPalClient {
 			request.put("auth_algo", transmissionHeaders.get("paypal-auth-algo"));
 			request.put("transmission_sig", transmissionHeaders.get("paypal-transmission-sig"));
 			request.put("webhook_id", properties.webhookId());
-			request.put("webhook_event", event);
+			byte[] metadata;
+			try {
+				metadata = objectMapper.writeValueAsBytes(request);
+			} catch (JacksonException exception) {
+				throw new PayPalUnavailableException();
+			}
+			if (metadata.length == 0 || metadata[metadata.length - 1] != '}') throw new PayPalUnavailableException();
+			byte[] separator = ",\"webhook_event\":".getBytes(StandardCharsets.UTF_8);
+			ByteArrayOutputStream body = new ByteArrayOutputStream(metadata.length + separator.length + rawEventJson.length + 1);
+			body.write(metadata, 0, metadata.length - 1);
+			body.writeBytes(separator);
+			body.writeBytes(rawEventJson);
+			body.write('}');
 			JsonNode response = client.post().uri("/v1/notifications/verify-webhook-signature")
 					.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken())
-					.contentType(MediaType.APPLICATION_JSON).body(request).retrieve().body(JsonNode.class);
+					.contentType(MediaType.APPLICATION_JSON).body(body.toByteArray()).retrieve().body(JsonNode.class);
 			return response != null && "SUCCESS".equals(response.path("verification_status").asText());
 		});
 	}

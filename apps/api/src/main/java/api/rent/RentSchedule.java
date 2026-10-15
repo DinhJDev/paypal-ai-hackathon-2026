@@ -108,4 +108,8 @@ public class RentSchedule {
 	public void markPaymentFailed() {
 		this.status = RentScheduleStatus.PAYMENT_FAILED;
 	}
+
+	public void markPastDue() {
+		this.status = RentScheduleStatus.PAST_DUE;
+	}
 }

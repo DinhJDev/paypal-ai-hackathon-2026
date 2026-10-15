@@ -34,8 +34,8 @@ function safeSchedule(value: unknown): Record<string, unknown> | null {
     typeof item.tenantLabel !== "string" || typeof item.amount !== "number" || !Number.isFinite(item.amount) ||
     item.currency !== "USD" || !["WEEKLY", "MONTHLY"].includes(String(item.frequency)) ||
     typeof item.nextDueDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.nextDueDate) ||
-    !["PENDING_APPROVAL", "SETUP_FAILED", "ACTIVE", "PAUSED", "PAYMENT_FAILED"].includes(String(item.status)) ||
-    !Array.isArray(item.payments)) return null;
+    !["PENDING_APPROVAL", "SETUP_FAILED", "ACTIVE", "PAUSED", "PAYMENT_FAILED", "PAST_DUE"].includes(String(item.status)) ||
+    typeof item.autopayEnabled !== "boolean" || !Array.isArray(item.payments)) return null;
   let approvalUrl: string | null = null;
   if (item.approvalUrl !== null && item.approvalUrl !== undefined) {
     try {
@@ -58,7 +58,7 @@ function safeSchedule(value: unknown): Record<string, unknown> | null {
   return {
     id: item.id, tenantLabel: item.tenantLabel, amount: item.amount, currency: "USD",
     frequency: item.frequency, nextDueDate: item.nextDueDate, status: item.status,
-    approvalUrl, payments,
+    autopayEnabled: item.autopayEnabled, approvalUrl, payments,
   };
 }
 
