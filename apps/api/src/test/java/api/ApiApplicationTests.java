@@ -28,8 +28,14 @@ class ApiApplicationTests extends JwtTestSupport {
 	void applicationPublishesOnlyItsShippedContractWithoutTestFixtures() throws Exception {
 		var spec = JsonMapper.builder().build().readTree(mvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-		assertThat(spec.path("paths").size()).isEqualTo(1);
+		assertThat(spec.path("paths").size()).isEqualTo(7);
 		assertThat(spec.path("paths").has("/api/v1/me")).isTrue();
+		assertThat(spec.path("paths").has("/api/v1/rent-schedules")).isTrue();
+		assertThat(spec.path("paths").has("/api/v1/rent-schedules/{id}")).isTrue();
+		assertThat(spec.path("paths").has("/api/v1/rent-schedules/{id}/approval-check")).isTrue();
+		assertThat(spec.path("paths").has("/api/v1/rent-schedules/{id}/pause")).isTrue();
+		assertThat(spec.path("paths").has("/api/v1/rent-schedules/paypal/return")).isTrue();
+		assertThat(spec.path("paths").has("/api/v1/rent-schedules/paypal/webhook")).isTrue();
 		try (var input = getClass().getResourceAsStream("/openapi/oas-3.1-schema.json")) {
 			var registry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12);
 			assertThat(registry.getSchema(input, InputFormat.JSON).validate(spec)).isEmpty();

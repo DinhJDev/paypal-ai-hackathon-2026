@@ -26,3 +26,12 @@ springdoc:
     enabled: false
   paths-to-match: /api/v1/**
   show-actuator: false
+
+paypal:
+  client-id: ${PAYPAL_CLIENT_ID:}
+  client-secret: ${PAYPAL_CLIENT_SECRET:}
+  webhook-id: ${PAYPAL_WEBHOOK_ID:}
+  autopay-enabled: ${PAYPAL_AUTOPAY_ENABLED:false}
+  return-url: ${PAYPAL_RETURN_URL:http://localhost:8080/api/v1/rent-schedules/paypal/return}
+  cancel-url: ${PAYPAL_CANCEL_URL:http://localhost:3000/rent/paypal/return?status=cancelled}
+  web-base-url: ${APP_BASE_URL:http://localhost:3000}

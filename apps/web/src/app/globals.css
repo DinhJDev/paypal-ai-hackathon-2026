@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "@bryntum/calendar/fontawesome/css/fontawesome.css";
+@import "@bryntum/calendar/fontawesome/css/solid.css";
+@import "@bryntum/calendar/calendar.css";
+@import "@bryntum/calendar/svalbard-light.css";
 
 @custom-variant dark (&:is(.dark *));
 

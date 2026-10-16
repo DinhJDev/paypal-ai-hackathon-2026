@@ -4,14 +4,19 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "postinstall": "node scripts/prepare-bryntum-trial.mjs"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "4.31.1",
     "@base-ui/react": "^1.9.0",
+    "@bryntum/calendar": "npm:@bryntum/calendar-trial@7.3.7",
+    "@bryntum/calendar-react": "7.3.7",
+    "ag-grid-community": "36.2.0",
+    "ag-grid-react": "36.2.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "lucide-react": "^1.55.0",
