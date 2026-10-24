@@ -13,6 +13,10 @@ tenant support, and suite matching remain planned in the [README](../README.md).
 | [`scripts`](../scripts) | Explicit owner-access provisioning. |
 | [`docs`](.) | Focused developer guides maintained with the code. |
 
+The API uses the root Java package `com.suitefolk.api`, with business features grouped in
+`identity` and `rent`. Application tests mirror their declared package paths. Shared test fixtures
+live in `com.suitefolk.testing`, outside application component scanning.
+
 ## Authentication and access
 
 Auth0's hosted database authenticates users. The Next.js server uses the official SDK for
