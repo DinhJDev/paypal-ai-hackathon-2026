@@ -28,6 +28,8 @@ export type RentSchedule = {
   approvalUrl: string | null;
   payments: RentPayment[];
   autopayStartDate?: string;
+  endDate?: string | null;
+  scheduleEnded?: boolean;
   outstandingBalance?: number;
   reviewRequiredCount?: number;
 };
@@ -86,14 +88,14 @@ export function summarizeRentSchedules(
   today: string,
 ): RentDashboardSummary {
   const dueSoon = schedules.filter(schedule =>
-    schedule.status !== "SETUP_FAILED" && isDueWithinSevenDays(schedule.nextDueDate, today),
+    !schedule.scheduleEnded && schedule.status !== "SETUP_FAILED" && isDueWithinSevenDays(schedule.nextDueDate, today),
   );
 
   const dueSoonCents = dueSoon.reduce((total, schedule) => total + Math.round(schedule.amount * 100), 0);
 
   return {
-    activeAutopayCount: schedules.filter(schedule => schedule.status === "ACTIVE" && schedule.autopayEnabled).length,
-    pendingApprovalCount: schedules.filter(schedule => schedule.status === "PENDING_APPROVAL").length,
+    activeAutopayCount: schedules.filter(schedule => !schedule.scheduleEnded && schedule.status === "ACTIVE" && schedule.autopayEnabled).length,
+    pendingApprovalCount: schedules.filter(schedule => !schedule.scheduleEnded && schedule.status === "PENDING_APPROVAL").length,
     paymentIssueCount: schedules.filter(schedule => schedule.status === "PAYMENT_FAILED" || schedule.status === "PAST_DUE" || (schedule.reviewRequiredCount ?? 0) > 0).length,
     dueWithinSevenDaysCount: dueSoon.length,
     dueWithinSevenDaysAmount: dueSoonCents / 100,
@@ -119,7 +121,7 @@ export function buildRentAttentionItems(schedules: RentSchedule[]): RentAttentio
   return schedules.flatMap(schedule => {
     const status: RentAttentionItem["status"] | null = (schedule.reviewRequiredCount ?? 0) > 0 ? "OWNER_REVIEW"
       : schedule.status === "PAST_DUE" || schedule.status === "PAYMENT_FAILED" ||
-        schedule.status === "SETUP_FAILED" || schedule.status === "PENDING_APPROVAL" ? schedule.status : null;
+        !schedule.scheduleEnded && (schedule.status === "SETUP_FAILED" || schedule.status === "PENDING_APPROVAL") ? schedule.status as RentAttentionItem["status"] : null;
     return status ? [{ scheduleId: schedule.id, tenantLabel: schedule.tenantLabel, status, message: messages[status] }] : [];
   }).sort((left, right) => attentionOrder[left.status] - attentionOrder[right.status] ||
     left.tenantLabel.localeCompare(right.tenantLabel));
@@ -151,7 +153,8 @@ export function buildRentCalendarEvents(
   const events: RentCalendarEvent[] = [];
 
   for (const schedule of schedules) {
-    if (schedule.status !== "SETUP_FAILED" &&
+    if (!schedule.scheduleEnded && schedule.status !== "SETUP_FAILED" &&
+      (!schedule.endDate || schedule.nextDueDate <= schedule.endDate) &&
       schedule.nextDueDate >= fromDate && schedule.nextDueDate <= toDate) {
       events.push({
         id: schedule.id + ":due:" + schedule.nextDueDate,

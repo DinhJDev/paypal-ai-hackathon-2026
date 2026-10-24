@@ -19,7 +19,7 @@ public interface RentScheduleRepository extends JpaRepository<RentSchedule, UUID
 
 	Optional<RentSchedule> findByPaypalSetupTokenId(String setupTokenId);
 
-	@Query("select s.id from RentSchedule s where s.status = :status and s.nextDueDate <= :dueDate order by s.nextDueDate")
+	@Query("select s.id from RentSchedule s where s.status = :status and s.nextDueDate <= :dueDate and (s.endDate is null or (s.endDate >= :dueDate and s.nextDueDate <= s.endDate)) order by s.nextDueDate")
 	List<UUID> findDueIds(@Param("status") RentScheduleStatus status, @Param("dueDate") LocalDate dueDate);
 
 	@Lock(LockModeType.PESSIMISTIC_WRITE)

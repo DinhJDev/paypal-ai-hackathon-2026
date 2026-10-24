@@ -17,9 +17,9 @@ public class RentCollectionService {
     @Transactional
     public void process(UUID scheduleId, LocalDate today) {
         RentSchedule schedule=schedules.findByIdForUpdate(scheduleId).orElse(null);
-        if(schedule==null || schedule.getStatus()!=RentScheduleStatus.ACTIVE) return;
+        if(schedule==null || schedule.getStatus()!=RentScheduleStatus.ACTIVE || schedule.isEndedOn(today)) return;
         ledger.ensurePeriods(schedule,today);
-        while(!schedule.getNextDueDate().isAfter(today)) {
+        while(schedule.includesDueDate(schedule.getNextDueDate()) && !schedule.getNextDueDate().isAfter(today)) {
             LocalDate due=schedule.getNextDueDate();
             RentPeriod period=ledger.duePeriod(schedule,due);
             RentPeriodView balance=ledger.view(period);

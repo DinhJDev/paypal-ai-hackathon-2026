@@ -61,6 +61,8 @@ function safeSchedule(value: unknown): Record<string, unknown> | null {
     id: item.id, tenantLabel: item.tenantLabel, amount: item.amount, currency: "USD",
     frequency: item.frequency, nextDueDate: item.nextDueDate, status: item.status,
     autopayEnabled: item.autopayEnabled, approvalUrl, payments,
+    ...(item.endDate === null || typeof item.endDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item.endDate) ? { endDate: item.endDate } : {}),
+    ...(typeof item.scheduleEnded === "boolean" ? { scheduleEnded: item.scheduleEnded } : {}),
     ...(typeof item.autopayStartDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item.autopayStartDate) ? { autopayStartDate: item.autopayStartDate } : {}),
     ...(typeof item.outstandingBalance === "number" && Number.isFinite(item.outstandingBalance) ? { outstandingBalance: item.outstandingBalance } : {}),
     ...(typeof item.reviewRequiredCount === "number" && Number.isSafeInteger(item.reviewRequiredCount) && item.reviewRequiredCount >= 0 ? { reviewRequiredCount: item.reviewRequiredCount } : {}),

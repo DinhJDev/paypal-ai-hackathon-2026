@@ -40,13 +40,27 @@ public class RentScheduleService {
 	@Transactional
 	public RentScheduleView create(Jwt jwt, CreateRentScheduleRequest request) {
 		OwnerIdentity owner = identities.requireOwner(jwt);
-		RentSchedule schedule = new RentSchedule(UUID.randomUUID(), owner.ownerId(), request.tenantLabel().trim(),
-				request.amount(), request.frequency(), request.nextDueDate());
-		schedule = schedules.save(schedule);
-		ledger.ensurePeriods(schedule, RentLedgerService.today());
-		return view(schedule);
+        RentSchedule schedule = createBounded(owner.ownerId(), request.tenantLabel(), request.amount(),
+            request.frequency(), request.nextDueDate(), request.endDate());
+        return view(schedule);
 	}
 
+
+    @Transactional
+    public UUID createForLease(UUID ownerId, String label, java.math.BigDecimal amount, Frequency frequency,
+            LocalDate firstDueDate, LocalDate endDate) {
+        return createBounded(ownerId, label, amount, frequency, firstDueDate, endDate).getId();
+    }
+
+    private RentSchedule createBounded(UUID ownerId, String label, java.math.BigDecimal amount, Frequency frequency,
+            LocalDate firstDueDate, LocalDate endDate) {
+        if (endDate != null && (endDate.isBefore(firstDueDate) || endDate.getYear() > 2100))
+            throw RentLedgerService.error(HttpStatus.BAD_REQUEST, "End date must include the first rent date and be no later than 2100.");
+        RentSchedule schedule = schedules.save(new RentSchedule(UUID.randomUUID(), ownerId, label.trim(), amount,
+            frequency, firstDueDate, endDate));
+        ledger.ensurePeriods(schedule, RentLedgerService.today());
+        return schedule;
+    }
 
     @Transactional
     public RentScheduleView setupAutopay(Jwt jwt, UUID scheduleId, StartRentAutopayRequest request) {
@@ -54,6 +68,7 @@ public class RentScheduleService {
         if(schedule.getStatus()==RentScheduleStatus.SCHEDULED || schedule.getStatus()==RentScheduleStatus.SETUP_FAILED) {
             ledger.ensurePeriods(schedule,RentLedgerService.today());
             java.time.LocalDate start=ledger.nextAutopayDate(schedule);
+            if(start == null || schedule.isEndedOn(RentLedgerService.today())) throw RentLedgerService.error(HttpStatus.CONFLICT,"No future rent date remains within this term.");
             if(!start.equals(request.firstChargeDate())) throw RentLedgerService.error(HttpStatus.CONFLICT,"The future start date changed. Review autopay setup again.");
             while(schedule.getNextDueDate().isBefore(start)) {
                 RentPeriod old=ledger.duePeriod(schedule,schedule.getNextDueDate());
@@ -107,6 +122,7 @@ public class RentScheduleService {
 		if (located == null) return false;
 		RentSchedule schedule = schedules.findByIdForUpdate(located.getId()).orElse(null);
 		if (schedule == null || !setupTokenId.equals(schedule.getPaypalSetupTokenId())) return false;
+		if (schedule.isEndedOn(RentLedgerService.today())) return false;
 		if (schedule.getStatus() == RentScheduleStatus.ACTIVE) return true;
 		if (schedule.getStatus() != RentScheduleStatus.PENDING_APPROVAL) return false;
 		if (!"APPROVED".equals(paypal.getSetupTokenStatus(setupTokenId))) return false;
@@ -173,6 +189,6 @@ public class RentScheduleService {
 		RentLedgerService.Summary summary=ledger.summary(schedule.getId());
 		return new RentScheduleView(schedule.getId(), schedule.getTenantLabel(), schedule.getAmount(), "USD",
 				schedule.getFrequency(), schedule.getNextDueDate(), schedule.getStatus(), paypal.isAutopayEnabled(),
-				schedule.getApprovalUrl(), history, summary.outstandingBalance(), summary.reviewRequiredCount(), ledger.nextAutopayDate(schedule));
+				schedule.getApprovalUrl(), history, summary.outstandingBalance(), summary.reviewRequiredCount(), ledger.nextAutopayDate(schedule), schedule.getEndDate(), schedule.isEndedOn(RentLedgerService.today()));
 	}
 }

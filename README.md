@@ -9,6 +9,7 @@ See the [official PayPal AI Hackathon schedule](https://paypalaihackathon.devpos
 
 - **Owner workspace:** hosted sign-in with explicitly provisioned owner access.
 - **Rent management:** weekly or monthly schedules, outside-payment tracking, and optional tenant-approved PayPal sandbox autopay.
+- **Lease workspace:** saved drafts and owner-confirmed rent schedules bounded by lease end dates.
 - **Churn prevention:** explainable early warnings for tenants who may be at risk of leaving.
 - **Tenant support and suite matching:** AI-assisted help and suitable suite recommendations.
 
@@ -22,6 +23,7 @@ collects sandbox payments only when its autopay switch is explicitly enabled. Li
 
 - [Development guide](docs/development.md): setup, local commands, checks, and contributing.
 - [Architecture](docs/architecture.md): repository structure and current implementation boundaries.
+- [Lease workspace](docs/lease-workspace.md): saved terms, owner confirmation, and lease end dates.
 - [Submission checklist](docs/hackathon-submission.md): hackathon deliverables and readiness checks.
 
 Licensed under [Apache 2.0](LICENSE).

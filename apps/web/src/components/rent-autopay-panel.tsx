@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { LeaseWorkspacePanel } from "./lease-workspace-panel";
 import { RentLedgerPanel } from "./rent-ledger-panel";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, ArrowUpRight, Building2, CalendarClock, CalendarDays, CheckCircle2, CircleDollarSign, Clock3, Plus, RefreshCw, Search, Wrench } from "lucide-react";
@@ -158,7 +159,7 @@ export function RentAutopayPanel() {
   const calendarEvents = useMemo<RentCalendarEvent[]>(() =>
     buildRentCalendarEvents(schedules, "0000-01-01", "9999-12-31"), [schedules]);
   const upcomingSchedules = useMemo(() => schedules
-    .filter(schedule => schedule.status !== "SETUP_FAILED")
+    .filter(schedule => !schedule.scheduleEnded && schedule.status !== "SETUP_FAILED")
     .slice()
     .sort((left, right) => left.nextDueDate.localeCompare(right.nextDueDate))
     .slice(0, 5), [schedules]);
@@ -345,6 +346,8 @@ export function RentAutopayPanel() {
               </ul>}
         </section>
       </div>
+
+      <LeaseWorkspacePanel onConfirmed={reload} />
 
       <RentLedgerPanel key={`${ledgerFocusId}-${ledgerFocusNonce}`} initialScheduleId={ledgerFocusId} schedules={schedules} onChanged={reload} />
 
