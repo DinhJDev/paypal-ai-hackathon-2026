@@ -74,12 +74,14 @@ public class RentPayment {
 	}
 
 	public void complete(String orderId, String captureId) {
+		if (status == RentPaymentStatus.REFUNDED) return;
 		recordExternalIds(orderId, captureId);
 		this.status = RentPaymentStatus.COMPLETED;
 		this.failureCode = null;
 	}
 
 	public void fail(String failureCode) {
+		if (status == RentPaymentStatus.COMPLETED || status == RentPaymentStatus.REFUNDED) return;
 		this.status = RentPaymentStatus.FAILED;
 		this.failureCode = failureCode;
 	}

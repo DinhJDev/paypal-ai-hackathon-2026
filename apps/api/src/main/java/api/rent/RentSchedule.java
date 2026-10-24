@@ -66,7 +66,7 @@ public class RentSchedule {
 		this.frequency = frequency;
 		this.nextDueDate = nextDueDate;
 		this.monthlyAnchorDay = nextDueDate.getDayOfMonth();
-		this.status = RentScheduleStatus.PENDING_APPROVAL;
+		this.status = RentScheduleStatus.SCHEDULED;
 	}
 
 	public UUID getId() { return id; }

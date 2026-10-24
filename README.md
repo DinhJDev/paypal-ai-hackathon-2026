@@ -8,15 +8,15 @@ See the [official PayPal AI Hackathon schedule](https://paypalaihackathon.devpos
 ## Features in development
 
 - **Owner workspace:** hosted sign-in with explicitly provisioned owner access.
-- **Rent autopay:** weekly or monthly rent schedules with tenant-approved PayPal sandbox vaulting and owner controls.
+- **Rent management:** weekly or monthly schedules, outside-payment tracking, and optional tenant-approved PayPal sandbox autopay.
 - **Churn prevention:** explainable early warnings for tenants who may be at risk of leaving.
 - **Tenant support and suite matching:** AI-assisted help and suitable suite recommendations.
 
 ## How it works
 
 The Next.js dashboard calls a Spring Boot API backed by PostgreSQL. Owners create rent schedules,
-tenants approve the recurring terms through PayPal, and the API records sandbox payments when its
-autopay switch is explicitly enabled. Live PayPal processing is not configured.
+record payments received elsewhere, and optionally invite tenants to approve PayPal autopay. The API
+collects sandbox payments only when its autopay switch is explicitly enabled. Live PayPal processing is not configured.
 
 ## Developer docs
 

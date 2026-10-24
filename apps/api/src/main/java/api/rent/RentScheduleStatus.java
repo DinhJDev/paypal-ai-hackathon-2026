@@ -1,6 +1,7 @@
 package api.rent;
 
 public enum RentScheduleStatus {
+	SCHEDULED,
 	PENDING_APPROVAL,
 	SETUP_FAILED,
 	ACTIVE,

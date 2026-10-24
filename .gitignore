@@ -91,3 +91,6 @@ Desktop.ini
 *.tmp
 *.swp
 *~
+
+# Local development planning artifacts
+.superpowers/

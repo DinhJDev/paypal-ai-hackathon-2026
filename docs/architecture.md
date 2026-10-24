@@ -31,9 +31,11 @@ internal UUID. Login, email, and token roles cannot provision access. Disabled o
 Rent schedules are scoped to the authenticated owner UUID. A tenant authorizes a PayPal vault payment
 method through a hosted approval link; the PayPal payment token stays in the API database and never
 enters web responses. The API creates weekly or monthly USD schedules, records individual due payments,
-and advances the due date only after a completed sandbox charge. Monthly dates retain the original day
-anchor across shorter months. Missed due dates pause for owner review rather than triggering automatic
-catch-up charges. The dashboard distinguishes tenant approval from the API-wide automatic-charge switch.
+and maintains a separate ledger for obligations and completed payments, including owner-recorded outside
+payments. Full outside settlement skips collection; partial payment and missed-date holds apply to the
+affected period. Monthly dates retain their original day anchor. Owner review never charges a reduced
+balance or releases a hold. The dashboard distinguishes tenant approval from the API-wide automatic-charge
+switch. See the [rent ledger guide](rent-ledger.md) for recording, correction, and reconciliation behavior.
 
 ## API foundation
 

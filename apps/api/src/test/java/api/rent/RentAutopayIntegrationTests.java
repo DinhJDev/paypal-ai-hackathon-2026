@@ -61,7 +61,7 @@ class RentAutopayIntegrationTests extends JwtTestSupport {
 	}
 
 	@Test
-	void ownerCanCreateRentScheduleAndGetTenantApprovalLinkWithoutCharging() throws Exception {
+	void ownerCanCreateRentScheduleThenExplicitlySetUpAutopayWithoutCharging() throws Exception {
 		when(paypal.createSetupToken(any(UUID.class), eq(Frequency.WEEKLY), eq(new BigDecimal("425.00")), any(LocalDate.class)))
 				.thenReturn(new PayPalClient.SetupToken("setup-demo", "https://www.sandbox.paypal.com/approve/demo"));
 
@@ -72,11 +72,18 @@ class RentAutopayIntegrationTests extends JwtTestSupport {
 					{"tenantLabel":"Demo suite 1","amount":425.00,"frequency":"WEEKLY","nextDueDate":"%s"}
 					""".formatted(LocalDate.now().plusDays(3))))
 			.andExpect(status().isCreated())
-			.andExpect(jsonPath("$.status").value("PENDING_APPROVAL"))
-			.andExpect(jsonPath("$.approvalUrl").value("https://www.sandbox.paypal.com/approve/demo"))
+			.andExpect(jsonPath("$.status").value("SCHEDULED"))
+			.andExpect(jsonPath("$.approvalUrl").isEmpty())
 			.andExpect(jsonPath("$.frequency").value("WEEKLY"))
 			.andExpect(jsonPath("$.paypalPaymentToken").doesNotExist());
 
+        verify(paypal, never()).createSetupToken(any(),any(),any(),any());
+        UUID id=jdbc.queryForObject("SELECT id FROM rent_schedule WHERE owner_id=?",UUID.class,OWNER_ID);
+        mvc.perform(post("/api/v1/rent-schedules/"+id+"/autopay-setup")
+                .header("Authorization","Bearer "+JwtFixture.token(OWNER_SUBJECT)).contentType("application/json")
+                .content("{\"firstChargeDate\":\""+LocalDate.now().plusDays(3)+"\",\"confirmed\":true}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDING_APPROVAL"))
+            .andExpect(jsonPath("$.approvalUrl").value("https://www.sandbox.paypal.com/approve/demo"));
 		assertThat(jdbc.queryForObject("SELECT count(*) FROM rent_schedule WHERE owner_id = ?", Integer.class, OWNER_ID))
 				.isEqualTo(1);
 		assertThat(jdbc.queryForObject("SELECT paypal_setup_token_id FROM rent_schedule WHERE owner_id = ?", String.class, OWNER_ID))
@@ -131,9 +138,10 @@ class RentAutopayIntegrationTests extends JwtTestSupport {
 		schedules.processDuePayments(LocalDate.now().plusDays(1));
 
 		assertThat(jdbc.queryForObject("SELECT status FROM rent_schedule WHERE id = ?", String.class, scheduleId))
-				.isEqualTo("PAST_DUE");
+				.isEqualTo("ACTIVE");
+        assertThat(jdbc.queryForObject("SELECT collection_held FROM rent_period WHERE schedule_id=? AND due_date=?",Boolean.class,scheduleId,missedDueDate)).isTrue();
 		assertThat(jdbc.queryForObject("SELECT next_due_date FROM rent_schedule WHERE id = ?", LocalDate.class, scheduleId))
-				.isEqualTo(missedDueDate);
+				.isEqualTo(missedDueDate.plusWeeks(1));
 		assertThat(jdbc.queryForObject("SELECT count(*) FROM rent_payment WHERE schedule_id = ?", Integer.class, scheduleId))
 				.isZero();
 		verify(paypal, never()).captureRent(anyString(), any(), anyString(), anyString());

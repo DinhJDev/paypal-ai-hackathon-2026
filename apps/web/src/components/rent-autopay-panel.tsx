@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { RentLedgerPanel } from "./rent-ledger-panel";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, ArrowUpRight, Building2, CalendarClock, CalendarDays, CheckCircle2, CircleDollarSign, Clock3, Plus, RefreshCw, Search, Wrench } from "lucide-react";
 import {
@@ -65,6 +66,9 @@ export function RentAutopayPanel() {
   const [saving, setSaving] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
+  const [ledgerFocusId, setLedgerFocusId] = useState("");
+  const [ledgerFocusNonce, setLedgerFocusNonce] = useState(0);
+  const [setupReview, setSetupReview] = useState<{ id: string; label: string; date: string; amount: number; frequency: string } | null>(null);
   const [activeView, setActiveView] = useState<"portfolio" | "calendar">("portfolio");
   const [updatingScheduleId, setUpdatingScheduleId] = useState<string | null>(null);
   const [scheduleMessage, setScheduleMessage] = useState<{ id: string; text: string } | null>(null);
@@ -87,16 +91,27 @@ export function RentAutopayPanel() {
     return () => window.cancelAnimationFrame(frame);
   }, [reload]);
 
-  const updateSchedule = useCallback(async (id: string, action: "approval-check" | "pause") => {
+  const updateSchedule = useCallback(async (id: string, action: "approval-check" | "pause" | "autopay-setup", confirmed = false) => {
     setError("");
+    if (action === "autopay-setup" && !confirmed) {
+      const schedule = schedules.find(item => item.id === id);
+      if (!schedule?.autopayStartDate) { setError("Refresh data to review the autopay start date."); return; }
+      setSetupReview({ id, label: schedule.tenantLabel, date: schedule.autopayStartDate, amount: schedule.amount, frequency: schedule.frequency });
+      return;
+    }
+    if (action === "autopay-setup" && (!setupReview || setupReview.id !== id)) return;
     setScheduleMessage(null);
     setUpdatingScheduleId(id);
     try {
       const response = await fetch(`/api/rent-schedules/${id}/${action}`, {
         method: "POST", credentials: "same-origin", cache: "no-store",
+        ...(action === "autopay-setup" ? { headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ firstChargeDate: setupReview?.date, confirmed: true }) } : {}),
       });
       const payload = await readJson(response);
+      if (response.status === 409) throw new Error("The schedule changed. Refresh data and review the start date again.");
       if (!response.ok || !payload || typeof payload !== "object") throw new Error("Could not update this rent schedule.");
+      if (action === "autopay-setup") setSetupReview(null);
       const updated = payload as RentSchedule;
       setSchedules(current => current.map(schedule => schedule.id === id ? updated : schedule));
       if (action === "approval-check") {
@@ -114,7 +129,7 @@ export function RentAutopayPanel() {
     } finally {
       setUpdatingScheduleId(null);
     }
-  }, []);
+  }, [schedules, setupReview]);
 
   async function createSchedule(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -127,7 +142,7 @@ export function RentAutopayPanel() {
         body: JSON.stringify({ tenantLabel, amount: Number(amount), frequency, nextDueDate }),
       });
       const payload = await readJson(response);
-      if (!response.ok) throw new Error("Could not create the rent schedule. Check the details and sandbox setup.");
+      if (!response.ok) throw new Error("Could not create the rent schedule. Check the schedule details.");
       if (payload && typeof payload === "object") setSchedules(current => [payload as RentSchedule, ...current]);
       setTenantLabel("");
       setAmount("");
@@ -170,6 +185,16 @@ export function RentAutopayPanel() {
 
       {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p>}
 
+      {setupReview && <section aria-label="Confirm autopay setup" className="space-y-3 rounded-xl border bg-white p-5">
+        <h3 className="font-semibold">Review autopay setup for {setupReview.label}</h3>
+        <p className="text-sm">{money(setupReview.amount)} {setupReview.frequency.toLowerCase()}, starting with rent due {displayDate(setupReview.date)}.</p>
+        <p className="text-sm text-slate-600">Earlier unpaid rent stays in the ledger for manual review. The tenant must separately approve these terms through PayPal.</p>
+        <div className="flex flex-wrap gap-3"><button type="button" disabled={updatingScheduleId !== null}
+          onClick={() => { void updateSchedule(setupReview.id, "autopay-setup", true); }}
+          className="rounded-lg border px-3 py-2 text-sm font-medium disabled:opacity-50">Confirm start date and create approval link</button>
+          <button type="button" disabled={updatingScheduleId !== null} onClick={() => setSetupReview(null)} className="text-sm underline">Cancel</button></div>
+      </section>}
+
       <section aria-label="Portfolio summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-xl border bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between text-sm text-slate-600">
@@ -197,7 +222,7 @@ export function RentAutopayPanel() {
             <span>Payment issues</span><AlertCircle className="size-4 text-rose-600" aria-hidden="true" />
           </div>
           <p className="mt-3 text-2xl font-semibold tracking-tight">{summary.paymentIssueCount}</p>
-          <p className="mt-1 text-xs text-slate-500">Failed rent payments to review</p>
+          <p className="mt-1 text-xs text-slate-500">Suites with rent records to review</p>
         </article>
       </section>
 
@@ -249,7 +274,7 @@ export function RentAutopayPanel() {
             : <RentCalendar events={calendarEvents} />}
         {scheduleMessage && <p role="status" className="border-t bg-emerald-50 px-5 py-3 text-sm text-emerald-800">{scheduleMessage.text}</p>}
         <div className="flex items-center justify-between gap-3 border-t bg-slate-50/70 px-5 py-3 text-xs text-slate-500 sm:px-6">
-          <span>{activeView === "portfolio" ? "Rent collection is processed through the PayPal sandbox." : `${calendarEvents.length} rent due dates and recorded payments; no future recurrence is projected.`}</span>
+          <span>{activeView === "portfolio" ? "Record outside payments in the ledger. Online collection uses the PayPal sandbox." : `${calendarEvents.length} rent due dates and recorded payments; no future recurrence is projected.`}</span>
           <span>USD</span>
         </div>
       </section>
@@ -265,7 +290,7 @@ export function RentAutopayPanel() {
                   <p className="text-sm font-medium">{item.tenantLabel}</p>
                   <p className="mt-0.5 text-sm text-slate-600">{item.message}</p>
                 </div>
-                <a href="#portfolio-title" className="inline-flex items-center gap-1 text-sm font-medium text-slate-800 underline underline-offset-4">
+                <a href={item.status === "OWNER_REVIEW" ? "#rent-ledger" : "#portfolio-title"} onClick={() => { if (item.status === "OWNER_REVIEW") { setLedgerFocusId(item.scheduleId); setLedgerFocusNonce(value => value + 1); } }} className="inline-flex items-center gap-1 text-sm font-medium text-slate-800 underline underline-offset-4">
                   Review <ArrowUpRight className="size-3.5" aria-hidden="true" />
                 </a>
               </li>)}
@@ -321,13 +346,15 @@ export function RentAutopayPanel() {
         </section>
       </div>
 
+      <RentLedgerPanel key={`${ledgerFocusId}-${ledgerFocusNonce}`} initialScheduleId={ledgerFocusId} schedules={schedules} onChanged={reload} />
+
       <section className="overflow-hidden rounded-2xl border bg-white shadow-sm">
         <button type="button" aria-expanded={formOpen} aria-controls="create-rent-schedule-form"
           onClick={() => setFormOpen(open => !open)}
           className="flex w-full items-center justify-between gap-4 p-5 text-left transition hover:bg-slate-50 sm:px-6">
           <span>
             <span className="block font-semibold">Create a rent schedule</span>
-            <span className="mt-1 block text-sm text-slate-500">Set weekly or monthly USD rent and send a sandbox approval link.</span>
+            <span className="mt-1 block text-sm text-slate-500">Set weekly or monthly USD rent. PayPal autopay setup is optional.</span>
           </span>
           <Plus className={`size-5 shrink-0 transition-transform ${formOpen ? "rotate-45" : ""}`} aria-hidden="true" />
         </button>

@@ -1,5 +1,6 @@
 export type RentFrequency = "WEEKLY" | "MONTHLY";
 export type RentScheduleStatus =
+  | "SCHEDULED"
   | "PENDING_APPROVAL"
   | "SETUP_FAILED"
   | "ACTIVE"
@@ -26,6 +27,9 @@ export type RentSchedule = {
   autopayEnabled: boolean;
   approvalUrl: string | null;
   payments: RentPayment[];
+  autopayStartDate?: string;
+  outstandingBalance?: number;
+  reviewRequiredCount?: number;
 };
 
 export type RentCalendarEvent =
@@ -59,7 +63,7 @@ export type RentDashboardSummary = {
 export type RentAttentionItem = {
   scheduleId: string;
   tenantLabel: string;
-  status: Extract<RentScheduleStatus, "PENDING_APPROVAL" | "SETUP_FAILED" | "PAYMENT_FAILED" | "PAST_DUE">;
+  status: Extract<RentScheduleStatus, "PENDING_APPROVAL" | "SETUP_FAILED" | "PAYMENT_FAILED" | "PAST_DUE"> | "OWNER_REVIEW";
   message: string;
 };
 
@@ -90,7 +94,7 @@ export function summarizeRentSchedules(
   return {
     activeAutopayCount: schedules.filter(schedule => schedule.status === "ACTIVE" && schedule.autopayEnabled).length,
     pendingApprovalCount: schedules.filter(schedule => schedule.status === "PENDING_APPROVAL").length,
-    paymentIssueCount: schedules.filter(schedule => schedule.status === "PAYMENT_FAILED" || schedule.status === "PAST_DUE").length,
+    paymentIssueCount: schedules.filter(schedule => schedule.status === "PAYMENT_FAILED" || schedule.status === "PAST_DUE" || (schedule.reviewRequiredCount ?? 0) > 0).length,
     dueWithinSevenDaysCount: dueSoon.length,
     dueWithinSevenDaysAmount: dueSoonCents / 100,
   };
@@ -98,31 +102,27 @@ export function summarizeRentSchedules(
 
 export function buildRentAttentionItems(schedules: RentSchedule[]): RentAttentionItem[] {
   const attentionOrder: Record<RentAttentionItem["status"], number> = {
+    OWNER_REVIEW: -1,
     PAST_DUE: 0,
     PAYMENT_FAILED: 1,
     SETUP_FAILED: 2,
     PENDING_APPROVAL: 3,
   };
   const messages: Record<RentAttentionItem["status"], string> = {
+    OWNER_REVIEW: "A rent period needs owner review. Check the ledger before further collection.",
     PAST_DUE: "A rent date was missed. Automatic charges are paused for owner review.",
     PAYMENT_FAILED: "A rent payment needs attention.",
     SETUP_FAILED: "Autopay setup needs attention.",
     PENDING_APPROVAL: "Tenant approval is still pending.",
   };
 
-  return schedules
-    .filter((schedule): schedule is RentSchedule & { status: RentAttentionItem["status"] } =>
-      schedule.status === "PAST_DUE" || schedule.status === "PAYMENT_FAILED" ||
-      schedule.status === "SETUP_FAILED" || schedule.status === "PENDING_APPROVAL",
-    )
-    .map(schedule => ({
-      scheduleId: schedule.id,
-      tenantLabel: schedule.tenantLabel,
-      status: schedule.status,
-      message: messages[schedule.status],
-    }))
-    .sort((left, right) => attentionOrder[left.status] - attentionOrder[right.status] ||
-      left.tenantLabel.localeCompare(right.tenantLabel));
+  return schedules.flatMap(schedule => {
+    const status: RentAttentionItem["status"] | null = (schedule.reviewRequiredCount ?? 0) > 0 ? "OWNER_REVIEW"
+      : schedule.status === "PAST_DUE" || schedule.status === "PAYMENT_FAILED" ||
+        schedule.status === "SETUP_FAILED" || schedule.status === "PENDING_APPROVAL" ? schedule.status : null;
+    return status ? [{ scheduleId: schedule.id, tenantLabel: schedule.tenantLabel, status, message: messages[status] }] : [];
+  }).sort((left, right) => attentionOrder[left.status] - attentionOrder[right.status] ||
+    left.tenantLabel.localeCompare(right.tenantLabel));
 }
 
 export function buildRecentRentPayments(schedules: RentSchedule[]): RentActivityItem[] {

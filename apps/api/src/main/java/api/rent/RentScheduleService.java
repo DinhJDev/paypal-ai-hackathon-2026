@@ -22,14 +22,19 @@ public class RentScheduleService {
 	private final PayPalWebhookEventRepository webhookEvents;
 	private final OwnerIdentityService identities;
 	private final PayPalClient paypal;
+	private final RentLedgerService ledger;
+	private final RentCollectionService collection;
+	@jakarta.persistence.PersistenceContext private jakarta.persistence.EntityManager entityManager;
 
 	public RentScheduleService(RentScheduleRepository schedules, RentPaymentRepository payments,
-			PayPalWebhookEventRepository webhookEvents, OwnerIdentityService identities, PayPalClient paypal) {
+			PayPalWebhookEventRepository webhookEvents, OwnerIdentityService identities, PayPalClient paypal, RentLedgerService ledger, RentCollectionService collection) {
 		this.schedules = schedules;
 		this.payments = payments;
 		this.webhookEvents = webhookEvents;
 		this.identities = identities;
 		this.paypal = paypal;
+		this.ledger = ledger;
+		this.collection = collection;
 	}
 
 	@Transactional
@@ -38,16 +43,40 @@ public class RentScheduleService {
 		RentSchedule schedule = new RentSchedule(UUID.randomUUID(), owner.ownerId(), request.tenantLabel().trim(),
 				request.amount(), request.frequency(), request.nextDueDate());
 		schedule = schedules.save(schedule);
-		PayPalClient.SetupToken setup = paypal.createSetupToken(schedule.getId(), schedule.getFrequency(),
-				schedule.getAmount(), schedule.getNextDueDate());
-		schedule.attachSetupToken(setup.id(), setup.approvalUrl());
+		ledger.ensurePeriods(schedule, RentLedgerService.today());
 		return view(schedule);
 	}
 
-	@Transactional(readOnly = true)
+
+    @Transactional
+    public RentScheduleView setupAutopay(Jwt jwt, UUID scheduleId, StartRentAutopayRequest request) {
+        RentSchedule schedule=ledger.requireOwnedLocked(jwt,scheduleId);
+        if(schedule.getStatus()==RentScheduleStatus.SCHEDULED || schedule.getStatus()==RentScheduleStatus.SETUP_FAILED) {
+            ledger.ensurePeriods(schedule,RentLedgerService.today());
+            java.time.LocalDate start=ledger.nextAutopayDate(schedule);
+            if(!start.equals(request.firstChargeDate())) throw RentLedgerService.error(HttpStatus.CONFLICT,"The future start date changed. Review autopay setup again.");
+            while(schedule.getNextDueDate().isBefore(start)) {
+                RentPeriod old=ledger.duePeriod(schedule,schedule.getNextDueDate());
+                if(ledger.view(old).balance().signum()>0 && !old.isCollectionHeld()) old.hold("BEFORE_AUTOPAY_START");
+                schedule.advanceDueDate();
+            }
+            ledger.ensurePeriods(schedule,RentLedgerService.today());
+            PayPalClient.SetupToken setup=paypal.createSetupToken(schedule.getId(),schedule.getFrequency(),
+                schedule.getAmount(),schedule.getNextDueDate());
+            schedule.attachSetupToken(setup.id(),setup.approvalUrl());
+        }
+        return view(schedule);
+    }
+
+	@Transactional
 	public List<RentScheduleView> list(Jwt jwt) {
 		UUID ownerId = identities.requireOwner(jwt).ownerId();
-		return schedules.findAllByOwnerIdOrderByNextDueDateAsc(ownerId).stream().map(this::view).toList();
+		List<RentSchedule> owned=schedules.findAllByOwnerIdOrderByNextDueDateAsc(ownerId);
+        owned.stream().map(RentSchedule::getId).sorted().forEach(id -> {
+            RentSchedule locked=schedules.findByIdForUpdate(id).orElseThrow();
+            ledger.ensurePeriods(locked,RentLedgerService.today());
+        });
+        return owned.stream().map(this::view).toList();
 	}
 
 	@Transactional(readOnly = true)
@@ -57,14 +86,14 @@ public class RentScheduleService {
 
 	@Transactional
 	public RentScheduleView checkApproval(Jwt jwt, UUID scheduleId) {
-		RentSchedule schedule = requireOwned(jwt, scheduleId);
+		RentSchedule schedule = ledger.requireOwnedLocked(jwt, scheduleId);
 		if (schedule.getPaypalSetupTokenId() != null) completeApproval(schedule.getPaypalSetupTokenId());
 		return view(schedule);
 	}
 
 	@Transactional
 	public RentScheduleView pause(Jwt jwt, UUID scheduleId) {
-		RentSchedule schedule = requireOwned(jwt, scheduleId);
+		RentSchedule schedule = ledger.requireOwnedLocked(jwt, scheduleId);
 		if (schedule.getStatus() == RentScheduleStatus.ACTIVE || schedule.getStatus() == RentScheduleStatus.PENDING_APPROVAL) {
 			schedule.pause();
 		}
@@ -86,48 +115,9 @@ public class RentScheduleService {
 		return true;
 	}
 
-	@Transactional
-	public void processDuePayments(LocalDate today) {
-		for (UUID id : schedules.findDueIds(RentScheduleStatus.ACTIVE, today)) {
-			processDuePayment(id, today);
-		}
-	}
-
-	private void processDuePayment(UUID id, LocalDate today) {
-		RentSchedule schedule = schedules.findByIdForUpdate(id).orElse(null);
-		if (schedule == null || schedule.getStatus() != RentScheduleStatus.ACTIVE || schedule.getNextDueDate().isAfter(today)) {
-			return;
-		}
-		LocalDate dueDate = schedule.getNextDueDate();
-		String idempotencyKey = "rent-" + schedule.getId() + "-" + dueDate;
-		RentPayment payment = payments.findByScheduleIdAndDueDate(schedule.getId(), dueDate).orElse(null);
-		if (dueDate.isBefore(today) && (payment == null || payment.getStatus() != RentPaymentStatus.PROCESSING)) {
-			schedule.markPastDue();
-			return;
-		}
-		if (payment != null && payment.getStatus() != RentPaymentStatus.PROCESSING) return;
-		if (payment == null) {
-			payment = payments.saveAndFlush(new RentPayment(UUID.randomUUID(), schedule.getId(), dueDate,
-					schedule.getAmount(), idempotencyKey));
-		}
-		try {
-			PayPalClient.ChargeResult result = paypal.captureRent(schedule.getPaypalPaymentTokenId(), schedule.getAmount(),
-					idempotencyKey, idempotencyKey);
-			if ("COMPLETED".equals(result.orderStatus()) && "COMPLETED".equals(result.captureStatus()) &&
-					!result.orderId().isBlank() && !result.captureId().isBlank()) {
-				payment.complete(result.orderId(), result.captureId());
-				schedule.advanceDueDate();
-				if (schedule.getNextDueDate().isBefore(today)) schedule.markPastDue();
-			} else {
-				payment.recordExternalIds(result.orderId(), result.captureId());
-				payment.fail("PAYMENT_NOT_COMPLETED");
-				schedule.markPaymentFailed();
-			}
-		} catch (PayPalUnavailableException exception) {
-			payment.fail("PAYPAL_UNAVAILABLE");
-			schedule.markPaymentFailed();
-		}
-	}
+    public void processDuePayments(LocalDate today) {
+        for(UUID id:schedules.findDueIds(RentScheduleStatus.ACTIVE,today)) collection.process(id,today);
+    }
 
 	@Transactional
 	public boolean recordVerifiedWebhook(JsonNode event) {
@@ -136,20 +126,23 @@ public class RentScheduleService {
 		JsonNode resource = event.path("resource");
 		String resourceId = resource.path("id").asText("");
 		if (id.isBlank() || type.isBlank() || id.length() > 128 || type.length() > 128 || resourceId.length() > 128) return false;
-		if (webhookEvents.existsById(id)) return true;
-		webhookEvents.saveAndFlush(new PayPalWebhookEvent(id, type, resourceId.isBlank() ? null : resourceId));
+		if (webhookEvents.recordOnce(id,type,resourceId.isBlank() ? null : resourceId)==0) return true;
 		String orderId = resource.path("supplementary_data").path("related_ids").path("order_id").asText("");
 		String invoiceId = resource.path("invoice_id").asText("");
 		RentPayment payment = orderId.isBlank() ? null : payments.findByPaypalOrderId(orderId).orElse(null);
 		if (payment == null && !resourceId.isBlank()) payment = payments.findByPaypalCaptureId(resourceId).orElse(null);
 		if (payment == null && !invoiceId.isBlank()) payment = payments.findByIdempotencyKey(invoiceId).orElse(null);
 		if (payment == null) return true;
+        RentSchedule locked=schedules.findByIdForUpdate(payment.getScheduleId()).orElse(null);
+        if(locked==null) return true;
+        entityManager.refresh(payment);
+        RentPaymentStatus previousStatus=payment.getStatus();
 		switch (type) {
 			case "PAYMENT.CAPTURE.COMPLETED" -> {
 				boolean alreadyCompleted = payment.getStatus() == RentPaymentStatus.COMPLETED;
 				payment.complete(orderId.isBlank() ? payment.getPaypalOrderId() : orderId,
 						resourceId.isBlank() ? payment.getPaypalCaptureId() : resourceId);
-				if (!alreadyCompleted) {
+				if (!alreadyCompleted && payment.getStatus()==RentPaymentStatus.COMPLETED) {
 					RentSchedule schedule = schedules.findByIdForUpdate(payment.getScheduleId()).orElse(null);
 					if (schedule != null && schedule.getNextDueDate().equals(payment.getDueDate())) schedule.advanceDueDate();
 				}
@@ -157,11 +150,12 @@ public class RentScheduleService {
 			case "PAYMENT.CAPTURE.DENIED" -> {
 				payment.fail("PAYMENT_DENIED");
 				RentSchedule schedule = schedules.findByIdForUpdate(payment.getScheduleId()).orElse(null);
-				if (schedule != null && schedule.getStatus() == RentScheduleStatus.ACTIVE) schedule.markPaymentFailed();
+				if (payment.getStatus()==RentPaymentStatus.FAILED && schedule != null && schedule.getStatus() == RentScheduleStatus.ACTIVE) schedule.markPaymentFailed();
 			}
 			case "PAYMENT.CAPTURE.REFUNDED" -> payment.markRefunded();
 			default -> { }
 		}
+		if(previousStatus!=payment.getStatus()) ledger.providerChanged(locked,payment);
 		return true;
 	}
 
@@ -176,8 +170,9 @@ public class RentScheduleService {
 		List<RentPaymentView> history = payments.findTop5ByScheduleIdOrderByDueDateDesc(schedule.getId()).stream()
 				.map(payment -> new RentPaymentView(payment.getDueDate(), payment.getAmount(), "USD", payment.getStatus()))
 				.toList();
+		RentLedgerService.Summary summary=ledger.summary(schedule.getId());
 		return new RentScheduleView(schedule.getId(), schedule.getTenantLabel(), schedule.getAmount(), "USD",
 				schedule.getFrequency(), schedule.getNextDueDate(), schedule.getStatus(), paypal.isAutopayEnabled(),
-				schedule.getApprovalUrl(), history);
+				schedule.getApprovalUrl(), history, summary.outstandingBalance(), summary.reviewRequiredCount(), ledger.nextAutopayDate(schedule));
 	}
 }

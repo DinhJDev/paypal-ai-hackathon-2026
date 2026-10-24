@@ -48,7 +48,7 @@ public class RentScheduleController {
 		this.objectMapper = objectMapper;
 	}
 
-	@Operation(operationId = "createRentSchedule", summary = "Create an owner rent schedule and PayPal sandbox approval link")
+	@Operation(operationId = "createRentSchedule", summary = "Create an owner rent schedule without enabling autopay")
 	@ApiResponses({
 			@ApiResponse(responseCode = "201", description = "Rent schedule created", content =
 					@Content(mediaType = "application/json", schema = @Schema(implementation = RentScheduleView.class))),
@@ -86,6 +86,13 @@ public class RentScheduleController {
 	public ResponseEntity<RentScheduleView> get(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
 		return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "private, no-store").body(schedules.get(jwt, id));
 	}
+
+    @Operation(operationId="setupRentAutopay",summary="Start optional PayPal sandbox autopay approval")
+    @PostMapping(path="/{id}/autopay-setup",consumes="application/json",produces="application/json")
+    public ResponseEntity<RentScheduleView> setupAutopay(@AuthenticationPrincipal Jwt jwt,@PathVariable UUID id,
+            @Valid @RequestBody StartRentAutopayRequest request) {
+        return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL,"private, no-store").body(schedules.setupAutopay(jwt,id,request));
+    }
 
 	@Operation(operationId = "checkRentScheduleApproval", summary = "Check PayPal approval and activate autopay")
 	@PostMapping(path = "/{id}/approval-check", produces = "application/json")
