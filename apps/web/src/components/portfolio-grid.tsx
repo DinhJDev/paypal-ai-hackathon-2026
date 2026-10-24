@@ -11,6 +11,7 @@ function money(amount: number): string {
 
 function statusStyles(status: RentSchedule["status"]): string {
   switch (status) {
+    case "SCHEDULED": return "border-slate-200 bg-slate-50 text-slate-700";
     case "ACTIVE": return "border-emerald-200 bg-emerald-50 text-emerald-800";
     case "PENDING_APPROVAL": return "border-amber-200 bg-amber-50 text-amber-800";
     case "PAYMENT_FAILED":
@@ -21,6 +22,7 @@ function statusStyles(status: RentSchedule["status"]): string {
 }
 
 function statusLabel(schedule: RentSchedule): string {
+  if (schedule.status === "SCHEDULED") return "not enabled";
   if (schedule.status === "ACTIVE" && !schedule.autopayEnabled) return "approved · charges off";
   return schedule.status.toLowerCase().replaceAll("_", " ");
 }
@@ -29,7 +31,7 @@ type PortfolioGridProps = {
   schedules: RentSchedule[];
   searchText: string;
   updatingScheduleId: string | null;
-  onUpdateSchedule: (id: string, action: "approval-check" | "pause") => void;
+  onUpdateSchedule: (id: string, action: "approval-check" | "pause" | "autopay-setup") => void;
 };
 
 export function PortfolioGrid({ schedules, searchText, updatingScheduleId, onUpdateSchedule }: PortfolioGridProps) {
@@ -92,6 +94,11 @@ export function PortfolioGrid({ schedules, searchText, updatingScheduleId, onUpd
         const busy = updatingScheduleId === schedule.id;
         return (
           <div className="flex h-full items-center gap-3 text-xs">
+            {(schedule.status === "SCHEDULED" || schedule.status === "SETUP_FAILED") && <button type="button" disabled={busy}
+              onClick={() => onUpdateSchedule(schedule.id, "autopay-setup")}
+              className="cursor-pointer font-medium underline underline-offset-4 disabled:opacity-50">
+              {busy ? "Setting up…" : "Set up autopay"}
+            </button>}
             {schedule.status === "PENDING_APPROVAL" && schedule.approvalUrl && <>
               <a href={schedule.approvalUrl} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">Open approval</a>
               <button type="button" disabled={busy} onClick={() => onUpdateSchedule(schedule.id, "approval-check")}
@@ -104,7 +111,7 @@ export function PortfolioGrid({ schedules, searchText, updatingScheduleId, onUpd
               className="cursor-pointer font-medium underline underline-offset-4 disabled:cursor-wait disabled:opacity-50">
               {busy ? "Pausing…" : "Pause autopay"}
             </button>}
-            {schedule.status !== "PENDING_APPROVAL" && schedule.status !== "ACTIVE" && <span className="text-slate-400">—</span>}
+            {schedule.status !== "SCHEDULED" && schedule.status !== "SETUP_FAILED" && schedule.status !== "PENDING_APPROVAL" && schedule.status !== "ACTIVE" && <span className="text-slate-400">—</span>}
           </div>
         );
       },

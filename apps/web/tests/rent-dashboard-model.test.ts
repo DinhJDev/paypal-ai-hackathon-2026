@@ -134,3 +134,12 @@ describe("rent dashboard model", () => {
     ]);
   });
 });
+
+it("surfaces ledger review holds even when the schedule still has approved autopay", () => {
+  const schedules = [schedule({ status: "ACTIVE", reviewRequiredCount: 1 })];
+  expect(summarizeRentSchedules(schedules, "2026-10-15").paymentIssueCount).toBe(1);
+  expect(buildRentAttentionItems(schedules)).toEqual([{
+    scheduleId: schedules[0].id, tenantLabel: "Suite 1", status: "OWNER_REVIEW",
+    message: "A rent period needs owner review. Check the ledger before further collection.",
+  }]);
+});

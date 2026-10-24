@@ -71,12 +71,14 @@ For an intentional local sandbox charge test, set `$env:PAYPAL_AUTOPAY_ENABLED =
 session before startup. This enables the 9 AM America/Chicago daily run for due schedules in the
 sandbox; it does not schedule real/live money movements. Set it back to `false` after the test.
 
-The owner creates a weekly or monthly USD schedule and shares the displayed PayPal approval link with
-the tenant. After approval, the API verifies the setup token with PayPal, creates the vault payment
-token, and stores that token server-side. An approved schedule is charged on its due date by the
+The owner creates a weekly or monthly USD schedule independently of PayPal. **Set up autopay**
+creates an optional approval link to share with the tenant. The [rent ledger](rent-ledger.md) also
+records cash, Venmo, and other outside payments without PayPal setup. After approval, the API verifies
+the setup token with PayPal, creates the vault payment token, and stores that token server-side. An approved schedule is charged on its due date by the
 sandbox-only scheduler. Each charge uses an idempotency key derived from schedule and due date; the
-owner dashboard shows recent payment state and can pause future charges. A failed or missed due date
-pauses the schedule for manual review; missed periods are not charged as automatic catch-up. The
+owner dashboard shows recent payment state and can pause future charges. Failed provider attempts
+pause the schedule. Missed dates and partial outside payments hold the affected rent period for owner
+review; missed periods are not charged as automatic catch-up. The
 dashboard reports separately whether tenant approval is complete and automatic charges are enabled.
 Automated retries/dunning are out of scope for this slice.
 
