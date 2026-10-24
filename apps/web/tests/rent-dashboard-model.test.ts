@@ -22,6 +22,17 @@ const schedule = (overrides: Partial<RentSchedule> & { autopayEnabled?: boolean 
 });
 
 describe("rent dashboard model", () => {
+  it("excludes ended schedules from upcoming rent while retaining payment history and owner review", () => {
+    const ended = schedule({ endDate: "2026-10-16", scheduleEnded: true, nextDueDate: "2026-11-16",
+      reviewRequiredCount: 1, payments: [{ dueDate: "2026-10-16", amount: 500, currency: "USD", status: "COMPLETED" }] });
+    const summary = summarizeRentSchedules([ended], "2026-11-15");
+    expect(summary.activeAutopayCount).toBe(0);
+    expect(summary.dueWithinSevenDaysCount).toBe(0);
+    const events = buildRentCalendarEvents([ended], "2026-10-01", "2026-11-30");
+    expect(events).toHaveLength(1); expect(events[0].kind).toBe("PAYMENT");
+    expect(buildRentAttentionItems([ended])[0].status).toBe("OWNER_REVIEW");
+    expect(buildRentAttentionItems([{...ended, status:"PENDING_APPROVAL", reviewRequiredCount:0}])).toEqual([]);
+  });
   it("summarizes due amounts and operational statuses from schedules", () => {
     const schedules = [
       schedule({ nextDueDate: "2026-10-15", amount: 250 }),

@@ -28,7 +28,11 @@ class ApiApplicationTests extends JwtTestSupport {
 	void applicationPublishesOnlyItsShippedContractWithoutTestFixtures() throws Exception {
 		var spec = JsonMapper.builder().build().readTree(mvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-		assertThat(spec.path("paths").size()).isEqualTo(12);
+		assertThat(spec.path("paths").size()).isEqualTo(16);
+        assertThat(spec.path("paths").has("/api/v1/leases")).isTrue();
+        assertThat(spec.path("paths").has("/api/v1/leases/{id}")).isTrue();
+        assertThat(spec.path("paths").has("/api/v1/leases/{id}/draft")).isTrue();
+        assertThat(spec.path("paths").has("/api/v1/leases/{id}/confirm")).isTrue();
         assertThat(spec.path("paths").has("/api/v1/rent-schedules/{id}/autopay-setup")).isTrue();
         assertThat(spec.path("paths").has("/api/v1/rent-schedules/{scheduleId}/ledger")).isTrue();
         assertThat(spec.path("paths").has("/api/v1/rent-schedules/{scheduleId}/ledger/{periodId}/payments")).isTrue();

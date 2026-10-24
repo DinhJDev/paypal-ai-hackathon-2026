@@ -35,6 +35,8 @@ class RentLedgerMigrationTests extends JwtTestSupport {
                     assertThat(result.getString(2)).isEqualTo("legacy-capture");assertThat(result.getString(3)).isEqualTo("COMPLETED");
                 }
                 try(var result=statement.executeQuery("SELECT paypal_payment_token_id FROM rent_schedule")) { result.next();assertThat(result.getString(1)).isEqualTo("vault-preserved"); }
+                try(var result=statement.executeQuery("SELECT end_date FROM rent_schedule")) { result.next();assertThat(result.getDate(1)).isNull(); }
+                try(var result=statement.executeQuery("SELECT count(*) FROM lease_workspace")) { result.next();assertThat(result.getInt(1)).isZero(); }
             }
         } finally {
             // This UUID-named schema exists only inside the disposable Testcontainers database.

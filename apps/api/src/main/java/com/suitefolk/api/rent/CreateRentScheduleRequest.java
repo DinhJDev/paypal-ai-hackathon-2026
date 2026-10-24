@@ -14,4 +14,4 @@ public record CreateRentScheduleRequest(
 		@NotBlank @Size(max = 120) String tenantLabel,
 		@NotNull @DecimalMin("0.01") @Digits(integer = 8, fraction = 2) BigDecimal amount,
 		@NotNull Frequency frequency,
-		@NotNull @FutureOrPresent LocalDate nextDueDate) { }
+		@NotNull @FutureOrPresent LocalDate nextDueDate, LocalDate endDate) { }

@@ -22,6 +22,7 @@ function statusStyles(status: RentSchedule["status"]): string {
 }
 
 function statusLabel(schedule: RentSchedule): string {
+  if (schedule.scheduleEnded) return "term finished";
   if (schedule.status === "SCHEDULED") return "not enabled";
   if (schedule.status === "ACTIVE" && !schedule.autopayEnabled) return "approved · charges off";
   return schedule.status.toLowerCase().replaceAll("_", " ");
@@ -62,6 +63,7 @@ export function PortfolioGrid({ schedules, searchText, updatingScheduleId, onUpd
       field: "nextDueDate",
       minWidth: 140,
       valueFormatter: params => {
+        if (params.data?.scheduleEnded) return "Term finished";
         if (typeof params.value !== "string") return "—";
         const date = new Date(params.value + "T12:00:00");
         return Number.isNaN(date.getTime()) ? params.value : new Intl.DateTimeFormat("en-US", {
@@ -92,9 +94,10 @@ export function PortfolioGrid({ schedules, searchText, updatingScheduleId, onUpd
         const schedule = params.data;
         if (!schedule) return null;
         const busy = updatingScheduleId === schedule.id;
+        if (schedule.scheduleEnded) return <span className="text-xs text-slate-500">Term finished · ledger retained</span>;
         return (
           <div className="flex h-full items-center gap-3 text-xs">
-            {(schedule.status === "SCHEDULED" || schedule.status === "SETUP_FAILED") && <button type="button" disabled={busy}
+            {(schedule.status === "SCHEDULED" || schedule.status === "SETUP_FAILED") && schedule.autopayStartDate && <button type="button" disabled={busy}
               onClick={() => onUpdateSchedule(schedule.id, "autopay-setup")}
               className="cursor-pointer font-medium underline underline-offset-4 disabled:opacity-50">
               {busy ? "Setting up…" : "Set up autopay"}

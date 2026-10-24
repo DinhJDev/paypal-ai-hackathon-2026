@@ -87,6 +87,7 @@ public class RentLedgerService {
     void ensurePeriods(RentSchedule schedule, LocalDate through) {
         LocalDate beforeNext=schedule.getNextDueDate().minusDays(1);
         if(beforeNext.isAfter(through)) through=beforeNext;
+        if(schedule.getEndDate()!=null && through.isAfter(schedule.getEndDate())) through=schedule.getEndDate();
         List<RentPeriod> existing=periods.findByScheduleIdOrderByDueDateAsc(schedule.getId());
         for(RentPeriod period:existing) {
             if(period.getDueDate().isBefore(today()) && !period.isCollectionHeld() && view(period).balance().signum()>0)
@@ -98,15 +99,16 @@ public class RentLedgerService {
             next=RentScheduleDates.nextDueDate(schedule.getFrequency(),next,schedule.getMonthlyAnchorDay());
         }
         // Materialize rent obligations, including the next future period, even when automatic charges are off.
-        do {
+        while (schedule.includesDueDate(next)) {
             RentPeriod period=new RentPeriod(schedule.getId(),next,schedule.getAmount());
-            if(next.isBefore(through)) period.hold("MISSED_DATE");
+            if(next.isBefore(today())) period.hold("MISSED_DATE");
             periods.saveAndFlush(period);
             if(next.isAfter(through)) break;
             next=RentScheduleDates.nextDueDate(schedule.getFrequency(),next,schedule.getMonthlyAnchorDay());
-        } while(true);
+        }
     }
     RentPeriod duePeriod(RentSchedule schedule, LocalDate dueDate) {
+        if(!schedule.includesDueDate(dueDate)) throw error(HttpStatus.CONFLICT,"That rent date is outside the scheduled term.");
         return periods.findByScheduleIdAndDueDate(schedule.getId(),dueDate).orElseGet(()->
             periods.saveAndFlush(new RentPeriod(schedule.getId(),dueDate,schedule.getAmount())));
     }
@@ -135,12 +137,13 @@ public class RentLedgerService {
     }
     LocalDate nextAutopayDate(RentSchedule schedule) {
         LocalDate candidate=schedule.getNextDueDate();
-        while(true) {
+        while(schedule.includesDueDate(candidate)) {
             RentPeriod period=periods.findByScheduleIdAndDueDate(schedule.getId(),candidate).orElse(null);
             if(candidate.isAfter(today()) && (period==null || !period.isCollectionHeld() && view(period).balance().signum()>0))
                 return candidate;
             candidate=RentScheduleDates.nextDueDate(schedule.getFrequency(),candidate,schedule.getMonthlyAnchorDay());
         }
+        return null;
     }
     public record Summary(BigDecimal outstandingBalance, int reviewRequiredCount) { }
     Summary summary(UUID scheduleId) {

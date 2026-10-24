@@ -3,11 +3,11 @@ package com.suitefolk.api.rent;
 import java.time.LocalDate;
 import java.time.YearMonth;
 
-final class RentScheduleDates {
+public final class RentScheduleDates {
 
 	private RentScheduleDates() { }
 
-	static LocalDate nextDueDate(Frequency frequency, LocalDate currentDueDate, int monthlyAnchorDay) {
+	public static LocalDate nextDueDate(Frequency frequency, LocalDate currentDueDate, int monthlyAnchorDay) {
 		return switch (frequency) {
 			case WEEKLY -> currentDueDate.plusWeeks(1);
 			case MONTHLY -> {

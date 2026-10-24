@@ -14,7 +14,7 @@ tenant support, and suite matching remain planned in the [README](../README.md).
 | [`docs`](.) | Focused developer guides maintained with the code. |
 
 The API uses the root Java package `com.suitefolk.api`, with business features grouped in
-`identity` and `rent`. Application tests mirror their declared package paths. Shared test fixtures
+`identity`, `rent`, and `lease`. Application tests mirror their declared package paths. Shared test fixtures
 live in `com.suitefolk.testing`, outside application component scanning.
 
 ## Authentication and access
@@ -40,6 +40,12 @@ payments. Full outside settlement skips collection; partial payment and missed-d
 affected period. Monthly dates retain their original day anchor. Owner review never charges a reduced
 balance or releases a hold. The dashboard distinguishes tenant approval from the API-wide automatic-charge
 switch. See the [rent ledger guide](rent-ledger.md) for recording, correction, and reconciliation behavior.
+
+Owner lease workspaces persist incomplete manual drafts independently from rent schedules. A revision
+check and row lock protect saves and explicit confirmation; confirmation atomically retains reviewed
+terms and creates one schedule with an inclusive end date. Lease lifecycle and payment authorization
+remain independent. Existing unbounded schedules and payment history are preserved. See the
+[lease workspace guide](lease-workspace.md) for review behavior and setup limits.
 
 ## API foundation
 

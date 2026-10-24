@@ -39,6 +39,9 @@ public class RentSchedule {
 	@Column(name = "next_due_date", nullable = false)
 	private LocalDate nextDueDate;
 
+	@Column(name = "end_date")
+	private LocalDate endDate;
+
 	@Column(name = "monthly_anchor_day", nullable = false)
 	private int monthlyAnchorDay;
 
@@ -68,6 +71,18 @@ public class RentSchedule {
 		this.monthlyAnchorDay = nextDueDate.getDayOfMonth();
 		this.status = RentScheduleStatus.SCHEDULED;
 	}
+
+    public RentSchedule(UUID id, UUID ownerId, String tenantLabel, BigDecimal amount, Frequency frequency,
+            LocalDate nextDueDate, LocalDate endDate) {
+        this(id, ownerId, tenantLabel, amount, frequency, nextDueDate);
+        this.endDate = endDate;
+    }
+
+    public LocalDate getEndDate() { return endDate; }
+    public boolean includesDueDate(LocalDate date) { return endDate == null || !date.isAfter(endDate); }
+    public boolean isEndedOn(LocalDate date) {
+        return endDate != null && (date.isAfter(endDate) || nextDueDate.isAfter(endDate));
+    }
 
 	public UUID getId() { return id; }
 	public UUID getOwnerId() { return ownerId; }

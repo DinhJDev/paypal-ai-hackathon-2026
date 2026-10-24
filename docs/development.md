@@ -149,6 +149,9 @@ pnpm lint
 pnpm build
 ```
 
+Development uses Turbopack; the production build uses Webpack. Both compile Tailwind through the
+shared PostCSS configuration. No separate development-only CSS loader is needed.
+
 Unit tests cover server configuration, session boundaries, identity validation, and sanitized errors.
 Unconfigured builds succeed; authentication fails safely at runtime. Live login/callback/refresh/logout
 remain browser checks against the configured tenant.
